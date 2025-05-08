@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.Socket;
 
 @FunctionalInterface
-public interface ServerClientWorkerFactory
-{
-   ServerClientWorker createWorker(final Socket socket) throws IOException;
+public interface ServerClientWorkerFactory {
+	ServerClientWorker createWorker(final Socket socket) throws IOException;
 }

@@ -5,13 +5,11 @@ import java.util.stream.Stream;
 
 import se.narstrom.myr.uri.Segment;
 
-public record AbsolutePath(List<Segment> segments)
-{
-   public static AbsolutePath parse(final String str)
-   {
-      if (!str.startsWith("/"))
-         throw new IllegalArgumentException("Invalid absolute path: " + str);
-      final String[] parts = str.substring(1).split("/");
-      return new AbsolutePath(Stream.of(parts).map(Segment::new).toList());
-   }
+public record AbsolutePath(List<Segment> segments) {
+	public static AbsolutePath parse(final String str) {
+		if (!str.startsWith("/"))
+			throw new IllegalArgumentException("Invalid absolute path: " + str);
+		final String[] parts = str.substring(1).split("/");
+		return new AbsolutePath(Stream.of(parts).map(Segment::new).toList());
+	}
 }
