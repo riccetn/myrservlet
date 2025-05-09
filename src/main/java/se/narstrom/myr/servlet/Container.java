@@ -1,11 +1,10 @@
 package se.narstrom.myr.servlet;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-
 import java.io.IOException;
 import java.util.logging.Logger;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletResponse;
 
 public final class Container implements AutoCloseable {
 	private final Logger logger = Logger.getLogger(getClass().getName());
@@ -26,7 +25,7 @@ public final class Container implements AutoCloseable {
 		rootContext.close();
 	}
 
-	public void service(final ServletRequest request, final ServletResponse response) throws IOException, ServletException {
+	public void service(final MyrServletRequest request, final ServletResponse response) throws IOException, ServletException {
 		rootContext.service(request, response);
 	}
 }

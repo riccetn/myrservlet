@@ -64,6 +64,8 @@ public final class MyrServletRequest implements HttpServletRequest {
 
 	private final Map<String, Object> attributes = new HashMap<>();
 
+	private Context context;
+
 	private Map<String, List<String>> parameters = null;
 
 	private ServletInputStream clientInputStream = null;
@@ -77,6 +79,10 @@ public final class MyrServletRequest implements HttpServletRequest {
 		this.fields = fields;
 		this.socket = socket;
 		this.inputStream = inputStream;
+	}
+
+	public void setContext(final Context context) {
+		this.context = context;
 	}
 
 	@Override
@@ -98,7 +104,7 @@ public final class MyrServletRequest implements HttpServletRequest {
 		if (contentType != null) {
 			try {
 				final String charset = MediaType.parse(contentType).parameters().get("charset");
-				if(charset != null)
+				if (charset != null)
 					encoding = Charset.forName(charset);
 			} catch (final IllegalCharsetNameException | UnsupportedCharsetException | ParseException ex) {
 				logger.log(Level.WARNING, "Failed to get charset from content-type header field", ex);
@@ -310,7 +316,7 @@ public final class MyrServletRequest implements HttpServletRequest {
 
 	@Override
 	public ServletContext getServletContext() {
-		throw new UnsupportedOperationException();
+		return context;
 	}
 
 	@Override
@@ -413,7 +419,7 @@ public final class MyrServletRequest implements HttpServletRequest {
 
 	@Override
 	public String getContextPath() {
-		throw new UnsupportedOperationException();
+		return getServletContext().getContextPath();
 	}
 
 	@Override

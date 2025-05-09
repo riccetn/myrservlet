@@ -42,7 +42,8 @@ public final class Context implements AutoCloseable, ServletContext {
 		defaultServlet.destroy();
 	}
 
-	public void service(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
+	public void service(final MyrServletRequest request, final ServletResponse response) throws ServletException, IOException {
+		request.setContext(this);
 		defaultServlet.service(request, response);
 	}
 
