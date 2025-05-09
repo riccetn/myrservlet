@@ -6,7 +6,9 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
 import java.security.Principal;
 import java.text.ParseException;
 import java.time.LocalDateTime;
@@ -64,7 +66,9 @@ public final class MyrServletRequest implements HttpServletRequest {
 
 	private Map<String, List<String>> parameters = null;
 
-	private ServletInputStream clientInputStream;
+	private ServletInputStream clientInputStream = null;
+
+	private Charset encoding = null;
 
 	public MyrServletRequest(final Method method, final AbsolutePath path, final Query query, final Map<Token, List<String>> fields, final Socket socket, final InputStream inputStream) {
 		this.method = method;
@@ -87,19 +91,38 @@ public final class MyrServletRequest implements HttpServletRequest {
 
 	@Override
 	public String getCharacterEncoding() {
+		if (encoding != null)
+			return encoding.name();
+
 		final String contentType = getContentType();
-		if (contentType == null)
-			return null;
+		if (contentType != null) {
+			try {
+				final String charset = MediaType.parse(contentType).parameters().get("charset");
+				if(charset != null)
+					encoding = Charset.forName(charset);
+			} catch (final IllegalCharsetNameException | UnsupportedCharsetException | ParseException ex) {
+				logger.log(Level.WARNING, "Failed to get charset from content-type header field", ex);
+			}
+		}
+
+		if (encoding == null)
+			encoding = StandardCharsets.UTF_8;
+
+		return encoding.name();
+	}
+
+	@Override
+	public void setCharacterEncoding(final String encoding) throws UnsupportedEncodingException {
 		try {
-			return MediaType.parse(contentType).parameters().get("charset");
-		} catch (final ParseException ex) {
-			return null;
+			this.encoding = Charset.forName(encoding);
+		} catch (final IllegalCharsetNameException | UnsupportedCharsetException ex) {
+			throw new UnsupportedEncodingException(ex.toString());
 		}
 	}
 
 	@Override
-	public void setCharacterEncoding(String env) throws UnsupportedEncodingException {
-		throw new UnsupportedOperationException();
+	public void setCharacterEncoding(final Charset encoding) {
+		this.encoding = encoding;
 	}
 
 	@Override
@@ -179,8 +202,8 @@ public final class MyrServletRequest implements HttpServletRequest {
 		}
 
 		if (mediaType != null && mediaType.type().equals("application") && mediaType.subtype().equals("x-www-form-urlencoded")) {
-			final String charsetName = getCharacterEncoding();
-			final Charset charset = charsetName == null ? StandardCharsets.ISO_8859_1 : Charset.forName(getCharacterEncoding(), StandardCharsets.ISO_8859_1);
+			getCharacterEncoding();
+
 			byte[] contentBytes = null;
 			try {
 				contentBytes = getInputStream().readAllBytes();
@@ -188,7 +211,7 @@ public final class MyrServletRequest implements HttpServletRequest {
 				logger.log(Level.SEVERE, "Failed to read body for parameters", ex);
 			}
 			if (contentBytes != null) {
-				final String content = new String(contentBytes, charset);
+				final String content = new String(contentBytes, encoding);
 				final Map<String, List<String>> contentParams = UrlEncoding.parse(content);
 				for (final Map.Entry<String, List<String>> ent : contentParams.entrySet()) {
 					parameters.computeIfAbsent(ent.getKey(), _ -> new ArrayList<>()).addAll(ent.getValue());
