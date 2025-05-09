@@ -19,7 +19,7 @@ public record Field(Token name, String value) {
 		final int colonIndex = str.indexOf(':');
 		if (colonIndex == -1)
 			throw new IllegalArgumentException("Invalid field: " + str);
-		final Token name = new Token(str.substring(0, colonIndex));
+		final Token name = new Token(str.substring(0, colonIndex).toLowerCase());
 		final String value = str.substring(colonIndex + 1).trim();
 		return new Field(name, value);
 	}

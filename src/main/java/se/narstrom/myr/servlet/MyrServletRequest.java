@@ -1,25 +1,53 @@
 package se.narstrom.myr.servlet;
 
-import jakarta.servlet.*;
-import jakarta.servlet.http.*;
-import se.narstrom.myr.http.semantics.Method;
-import se.narstrom.myr.http.semantics.Token;
-import se.narstrom.myr.http.v1.AbsolutePath;
-import se.narstrom.myr.uri.Query;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.Socket;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
+import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import jakarta.servlet.AsyncContext;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletConnection;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletInputStream;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpUpgradeHandler;
+import jakarta.servlet.http.Part;
+import se.narstrom.myr.http.semantics.Method;
+import se.narstrom.myr.http.semantics.Token;
+import se.narstrom.myr.http.v1.AbsolutePath;
+import se.narstrom.myr.mime.MediaType;
+import se.narstrom.myr.uri.Query;
+import se.narstrom.myr.uri.UrlEncoding;
 
 public final class MyrServletRequest implements HttpServletRequest {
+	private final Logger logger = Logger.getLogger(getClass().getName());
+
 	private final Method method;
 
 	private final AbsolutePath path;
@@ -35,6 +63,8 @@ public final class MyrServletRequest implements HttpServletRequest {
 	private final Map<String, Object> attributes = new HashMap<>();
 
 	private Map<String, List<String>> parameters = null;
+
+	private ServletInputStream clientInputStream;
 
 	public MyrServletRequest(final Method method, final AbsolutePath path, final Query query, final Map<Token, List<String>> fields, final Socket socket, final InputStream inputStream) {
 		this.method = method;
@@ -57,7 +87,14 @@ public final class MyrServletRequest implements HttpServletRequest {
 
 	@Override
 	public String getCharacterEncoding() {
-		throw new UnsupportedOperationException();
+		final String contentType = getContentType();
+		if (contentType == null)
+			return null;
+		try {
+			return MediaType.parse(contentType).parameters().get("charset");
+		} catch (final ParseException ex) {
+			return null;
+		}
 	}
 
 	@Override
@@ -72,7 +109,14 @@ public final class MyrServletRequest implements HttpServletRequest {
 
 	@Override
 	public long getContentLengthLong() {
-		return Long.parseLong(getHeader("content-length"));
+		final String contentLength = getHeader("content-length");
+		if (contentLength == null)
+			return -1L;
+		try {
+			return Long.parseLong(contentLength);
+		} catch (final NumberFormatException ex) {
+			return -1L;
+		}
 	}
 
 	@Override
@@ -82,7 +126,13 @@ public final class MyrServletRequest implements HttpServletRequest {
 
 	@Override
 	public ServletInputStream getInputStream() throws IOException {
-		throw new UnsupportedOperationException();
+		if (clientInputStream == null) {
+			final long length = getContentLengthLong();
+			if (length != -1L) {
+				clientInputStream = new LengthInputStream(inputStream, length);
+			}
+		}
+		return clientInputStream;
 	}
 
 	@Override
@@ -113,17 +163,37 @@ public final class MyrServletRequest implements HttpServletRequest {
 		parameters = new HashMap<>();
 
 		if (!query.value().isEmpty()) {
-			final String[] params = query.value().split("&", -1);
-			for (final String param : params) {
-				final int equals = param.indexOf('=');
-				final String name = equals < 0 ? param : param.substring(0, equals);
-				final String value = equals < 0 ? "" : param.substring(equals + 1);
-				parameters.computeIfAbsent(name, __ -> new ArrayList<>()).add(value);
+			final Map<String, List<String>> queryParameters = UrlEncoding.parse(query.value());
+			for (final Map.Entry<String, List<String>> ent : queryParameters.entrySet()) {
+				parameters.computeIfAbsent(ent.getKey(), _ -> new ArrayList<>()).addAll(ent.getValue());
 			}
 		}
 
-		if (getContentType().startsWith("application/x-www-urlencoded")) {
+		final String contentType = getContentType();
+		MediaType mediaType = null;
+		if (contentType != null) {
+			try {
+				mediaType = MediaType.parse(contentType);
+			} catch (final ParseException ex) {
+			}
+		}
 
+		if (mediaType != null && mediaType.type().equals("application") && mediaType.subtype().equals("x-www-form-urlencoded")) {
+			final String charsetName = getCharacterEncoding();
+			final Charset charset = charsetName == null ? StandardCharsets.ISO_8859_1 : Charset.forName(getCharacterEncoding(), StandardCharsets.ISO_8859_1);
+			byte[] contentBytes = null;
+			try {
+				contentBytes = getInputStream().readAllBytes();
+			} catch (final IOException ex) {
+				logger.log(Level.SEVERE, "Failed to read body for parameters", ex);
+			}
+			if (contentBytes != null) {
+				final String content = new String(contentBytes, charset);
+				final Map<String, List<String>> contentParams = UrlEncoding.parse(content);
+				for (final Map.Entry<String, List<String>> ent : contentParams.entrySet()) {
+					parameters.computeIfAbsent(ent.getKey(), _ -> new ArrayList<>()).addAll(ent.getValue());
+				}
+			}
 		}
 	}
 
@@ -282,7 +352,10 @@ public final class MyrServletRequest implements HttpServletRequest {
 
 	@Override
 	public String getHeader(final String name) {
-		return fields.get(new Token(name)).getFirst();
+		final List<String> values = fields.get(new Token(name));
+		if (values == null)
+			return null;
+		return values.getFirst();
 	}
 
 	@Override

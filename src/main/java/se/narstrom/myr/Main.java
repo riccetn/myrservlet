@@ -1,5 +1,6 @@
 package se.narstrom.myr;
 
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.nio.file.Path;
 import java.util.Map;
@@ -15,7 +16,10 @@ public final class Main {
 	public static void main(final String[] args) throws Exception {
 		try (final Container container = new Container(new Context(Path.of("C:\\webroot"), Map.of(), new TestServlet()))) {
 			container.init();
-			try (final Server server = new Server(new ServerSocket(8080), Executors.newVirtualThreadPerTaskExecutor(), new Http1WorkerFactory(container))) {
+			final ServerSocket socket = new ServerSocket();
+			socket.setReuseAddress(true);
+			socket.bind(new InetSocketAddress(8080));
+			try (final Server server = new Server(socket, Executors.newVirtualThreadPerTaskExecutor(), new Http1WorkerFactory(container))) {
 				server.run();
 			}
 		}
