@@ -12,4 +12,15 @@ public record AbsolutePath(List<Segment> segments) {
 		final String[] parts = str.substring(1).split("/");
 		return new AbsolutePath(Stream.of(parts).map(Segment::new).toList());
 	}
+
+	@Override
+	public final String toString() {
+		final StringBuilder sb = new StringBuilder();
+		for (final Segment segment : segments) {
+			sb.append("/").append(segment.value());
+		}
+		if (sb.isEmpty())
+			sb.append("/");
+		return sb.toString();
+	}
 }

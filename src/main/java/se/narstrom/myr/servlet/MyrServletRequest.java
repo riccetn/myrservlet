@@ -232,7 +232,7 @@ public final class MyrServletRequest implements HttpServletRequest {
 
 	@Override
 	public String getServerName() {
-		return "Test Server";
+		return "localhost";
 	}
 
 	@Override
@@ -443,17 +443,27 @@ public final class MyrServletRequest implements HttpServletRequest {
 
 	@Override
 	public String getRequestURI() {
-		throw new UnsupportedOperationException();
+		logger.info("getRequestURL() " + path.toString());
+		return path.toString();
 	}
 
 	@Override
 	public StringBuffer getRequestURL() {
-		throw new UnsupportedOperationException();
+		final StringBuffer sb = new StringBuffer();
+		final String scheme = getScheme();
+		sb.append(scheme);
+		sb.append("://");
+		sb.append(getServerName());
+		sb.append(":");
+		sb.append(Integer.toString(getServerPort()));
+		sb.append(path.toString());
+		logger.info("getRequestURL() " + sb.toString());
+		return sb;
 	}
 
 	@Override
 	public String getServletPath() {
-		throw new UnsupportedOperationException();
+		return "";
 	}
 
 	@Override
