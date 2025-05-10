@@ -146,8 +146,10 @@ public final class MyrServletResponse implements HttpServletResponse {
 		commit();
 		if (writer != null)
 			writer.flush();
-		if (clientStream != null)
+		else if (clientStream != null)
 			clientStream.flush();
+		else
+			outputStream.flush();
 	}
 
 	@Override
