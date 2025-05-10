@@ -92,7 +92,7 @@ public final class MyrServletResponse implements HttpServletResponse {
 				if (length >= 0)
 					clientStream = new LengthOutputStream(outputStream, length);
 			}
-			if(clientStream == null)
+			if (clientStream == null)
 				throw new UnsupportedOperationException("Missing content-length");
 		}
 		if (writer != null)
@@ -118,7 +118,7 @@ public final class MyrServletResponse implements HttpServletResponse {
 
 	@Override
 	public void setContentLength(final int len) {
-		setHeader("content-kength", Integer.toString(len));
+		setHeader("content-length", Integer.toString(len));
 	}
 
 	@Override

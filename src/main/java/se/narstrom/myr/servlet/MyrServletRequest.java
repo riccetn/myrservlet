@@ -156,9 +156,13 @@ public final class MyrServletRequest implements HttpServletRequest {
 	@Override
 	public ServletInputStream getInputStream() throws IOException {
 		if (clientInputStream == null) {
-			final long length = getContentLengthLong();
+			long length = getContentLengthLong();
 			if (length != -1L) {
 				clientInputStream = new LengthInputStream(inputStream, length);
+			}
+			// TODO: other body formats
+			if (clientInputStream == null) {
+				clientInputStream = new LengthInputStream(null, 0L);
 			}
 		}
 		return clientInputStream;
@@ -425,7 +429,7 @@ public final class MyrServletRequest implements HttpServletRequest {
 	@Override
 	public String getQueryString() {
 		final String queryStr = query.toString();
-		if(queryStr.isEmpty())
+		if (queryStr.isEmpty())
 			return null;
 		return queryStr;
 	}
