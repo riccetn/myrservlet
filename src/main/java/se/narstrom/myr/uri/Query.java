@@ -15,4 +15,9 @@ public record Query(String value) {
 		}
 		return true;
 	}
+
+	@Override
+	public final String toString() {
+		return value;
+	}
 }

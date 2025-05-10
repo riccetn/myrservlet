@@ -424,7 +424,10 @@ public final class MyrServletRequest implements HttpServletRequest {
 
 	@Override
 	public String getQueryString() {
-		throw new UnsupportedOperationException();
+		final String queryStr = query.toString();
+		if(queryStr.isEmpty())
+			return null;
+		return queryStr;
 	}
 
 	@Override
