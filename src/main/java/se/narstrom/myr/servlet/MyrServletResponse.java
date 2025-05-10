@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public final class MyrServletResponse implements HttpServletResponse {
-	private final Map<Token, List<String>> fields = new HashMap<>();
+	private final Map<Token, List<String>> headerFields = new HashMap<>();
 
 	private final OutputStream outputStream;
 
@@ -32,7 +32,7 @@ public final class MyrServletResponse implements HttpServletResponse {
 			return;
 		commited = true;
 		outputStream.write(("HTTP/1.1 " + status + "\r\n").getBytes());
-		for (final Map.Entry<Token, List<String>> entry : fields.entrySet()) {
+		for (final Map.Entry<Token, List<String>> entry : headerFields.entrySet()) {
 			final Token name = entry.getKey();
 			final List<String> values = entry.getValue();
 			for (final String value : values)
@@ -48,7 +48,7 @@ public final class MyrServletResponse implements HttpServletResponse {
 
 	@Override
 	public boolean containsHeader(final String name) {
-		throw new UnsupportedOperationException();
+		return headerFields.containsKey(new Token(name));
 	}
 
 	@Override
@@ -92,12 +92,12 @@ public final class MyrServletResponse implements HttpServletResponse {
 
 	@Override
 	public void setContentLength(final int len) {
-		throw new UnsupportedOperationException();
+		setHeader("content-length", Integer.toString(len));
 	}
 
 	@Override
 	public void setContentLengthLong(final long len) {
-		throw new UnsupportedOperationException();
+		setHeader("content-length", Long.toString(len));
 	}
 
 	@Override
@@ -137,7 +137,7 @@ public final class MyrServletResponse implements HttpServletResponse {
 		if (commited)
 			throw new IllegalStateException("Response has already been committed");
 		status = SC_OK;
-		fields.clear();
+		headerFields.clear();
 	}
 
 	@Override
@@ -181,22 +181,22 @@ public final class MyrServletResponse implements HttpServletResponse {
 
 	@Override
 	public void setHeader(final String name, final String value) {
-		fields.computeIfAbsent(new Token(name), k -> new ArrayList<>()).add(value);
+		headerFields.put(new Token(name), new ArrayList<>(List.of(value)));
 	}
 
 	@Override
 	public void addHeader(String name, String value) {
-		throw new UnsupportedOperationException();
+		headerFields.computeIfAbsent(new Token(name), _ -> new ArrayList<>()).add(value);
 	}
 
 	@Override
-	public void setIntHeader(String name, int value) {
-		throw new UnsupportedOperationException();
+	public void setIntHeader(final String name, final int value) {
+		setHeader(name, Integer.toString(value));
 	}
 
 	@Override
-	public void addIntHeader(String name, int value) {
-		throw new UnsupportedOperationException();
+	public void addIntHeader(final String name, final int value) {
+		addHeader(name, Integer.toString(value));
 	}
 
 	@Override
