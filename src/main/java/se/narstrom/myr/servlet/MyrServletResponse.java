@@ -1,16 +1,21 @@
 package se.narstrom.myr.servlet;
 
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
-import se.narstrom.myr.http.semantics.Token;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+import se.narstrom.myr.http.semantics.Token;
 
 public final class MyrServletResponse implements HttpServletResponse {
 	private final Map<Token, List<String>> headerFields = new HashMap<>();
@@ -20,6 +25,8 @@ public final class MyrServletResponse implements HttpServletResponse {
 	int status = SC_OK;
 
 	private PrintWriter writer;
+
+	private ServletOutputStream clientStream;
 
 	private boolean commited = false;
 
@@ -73,14 +80,33 @@ public final class MyrServletResponse implements HttpServletResponse {
 
 	@Override
 	public ServletOutputStream getOutputStream() throws IOException {
-		throw new UnsupportedOperationException();
+		if (clientStream == null) {
+			commit();
+			final String contentLength = getHeader("content-length");
+			if (contentLength != null) {
+				long length = -1L;
+				try {
+					length = Long.parseLong(contentLength);
+				} catch (final NumberFormatException ex) {
+				}
+				if (length >= 0)
+					clientStream = new LengthOutputStream(outputStream, length);
+			}
+			if(clientStream == null)
+				throw new UnsupportedOperationException("Missing content-length");
+		}
+		if (writer != null)
+			throw new IllegalStateException("Stream or writer, not both");
+		return clientStream;
 	}
 
 	@Override
 	public PrintWriter getWriter() throws IOException {
 		if (writer == null) {
+			if (clientStream != null)
+				throw new IllegalStateException("Stream of writer, not both");
 			commit();
-			writer = new PrintWriter(outputStream, false, Charset.forName(getCharacterEncoding(), StandardCharsets.ISO_8859_1));
+			writer = new PrintWriter(getOutputStream(), false, Charset.forName(getCharacterEncoding(), StandardCharsets.ISO_8859_1));
 		}
 		return writer;
 	}
@@ -92,7 +118,7 @@ public final class MyrServletResponse implements HttpServletResponse {
 
 	@Override
 	public void setContentLength(final int len) {
-		setHeader("content-length", Integer.toString(len));
+		setHeader("content-kength", Integer.toString(len));
 	}
 
 	@Override
@@ -120,6 +146,8 @@ public final class MyrServletResponse implements HttpServletResponse {
 		commit();
 		if (writer != null)
 			writer.flush();
+		if (clientStream != null)
+			clientStream.flush();
 	}
 
 	@Override
@@ -154,7 +182,8 @@ public final class MyrServletResponse implements HttpServletResponse {
 	public void sendError(int sc, String msg) throws IOException {
 		reset();
 		setStatus(sc);
-		setHeader("Content-Type", "text/plain");
+		setContentType("text/plain");
+		setContentLength(msg.length());
 		getWriter().write(msg);
 		flushBuffer();
 	}
@@ -181,12 +210,12 @@ public final class MyrServletResponse implements HttpServletResponse {
 
 	@Override
 	public void setHeader(final String name, final String value) {
-		headerFields.put(new Token(name), new ArrayList<>(List.of(value)));
+		headerFields.put(new Token(name.toLowerCase()), new ArrayList<>(List.of(value)));
 	}
 
 	@Override
 	public void addHeader(String name, String value) {
-		headerFields.computeIfAbsent(new Token(name), _ -> new ArrayList<>()).add(value);
+		headerFields.computeIfAbsent(new Token(name.toLowerCase()), _ -> new ArrayList<>()).add(value);
 	}
 
 	@Override
@@ -212,8 +241,11 @@ public final class MyrServletResponse implements HttpServletResponse {
 	}
 
 	@Override
-	public String getHeader(String name) {
-		throw new UnsupportedOperationException();
+	public String getHeader(final String name) {
+		final List<String> values = headerFields.get(new Token(name.toLowerCase()));
+		if (values == null)
+			return null;
+		return values.getFirst();
 	}
 
 	@Override
