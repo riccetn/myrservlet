@@ -452,7 +452,6 @@ public final class MyrServletRequest implements HttpServletRequest {
 
 	@Override
 	public String getRequestURI() {
-		logger.info("getRequestURL() " + path.toString());
 		return path.toString();
 	}
 
@@ -466,7 +465,6 @@ public final class MyrServletRequest implements HttpServletRequest {
 		sb.append(":");
 		sb.append(Integer.toString(getServerPort()));
 		sb.append(path.toString());
-		logger.info("getRequestURL() " + sb.toString());
 		return sb;
 	}
 
