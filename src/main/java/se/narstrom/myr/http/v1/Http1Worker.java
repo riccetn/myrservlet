@@ -40,8 +40,8 @@ public final class Http1Worker implements ServerClientWorker {
 			fields.computeIfAbsent(field.name(), _ -> new ArrayList<>()).add(field.value());
 		}
 
-		final MyrServletRequest request = new MyrServletRequest(requestLine.method(), requestLine.target().absolutePath(), requestLine.target().query(), fields, socket, in);
-		final MyrServletResponse response = new MyrServletResponse(out);
+		final Request request = new Request(requestLine.method(), requestLine.target().absolutePath(), requestLine.target().query(), fields, socket, in);
+		final Response response = new Response(out);
 
 		try {
 			container.service(request, response);

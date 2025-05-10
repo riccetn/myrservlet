@@ -47,7 +47,7 @@ import se.narstrom.myr.mime.MediaType;
 import se.narstrom.myr.uri.Query;
 import se.narstrom.myr.uri.UrlEncoding;
 
-public final class MyrServletRequest implements HttpServletRequest {
+public final class Request implements HttpServletRequest {
 	private final Logger logger = Logger.getLogger(getClass().getName());
 
 	private final Method method;
@@ -72,7 +72,7 @@ public final class MyrServletRequest implements HttpServletRequest {
 
 	private Charset encoding = null;
 
-	public MyrServletRequest(final Method method, final AbsolutePath path, final Query query, final Map<Token, List<String>> fields, final Socket socket, final InputStream inputStream) {
+	public Request(final Method method, final AbsolutePath path, final Query query, final Map<Token, List<String>> fields, final Socket socket, final InputStream inputStream) {
 		this.method = method;
 		this.path = path;
 		this.query = query;

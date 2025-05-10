@@ -17,7 +17,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import se.narstrom.myr.http.semantics.Token;
 
-public final class MyrServletResponse implements HttpServletResponse {
+public final class Response implements HttpServletResponse {
 	private final Map<Token, List<String>> headerFields = new HashMap<>();
 
 	private final OutputStream outputStream;
@@ -30,7 +30,7 @@ public final class MyrServletResponse implements HttpServletResponse {
 
 	private boolean commited = false;
 
-	public MyrServletResponse(final OutputStream outputStream) {
+	public Response(final OutputStream outputStream) {
 		this.outputStream = outputStream;
 	}
 
