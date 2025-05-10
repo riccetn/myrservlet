@@ -9,7 +9,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.spi.FileSystemProvider;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,17 +23,20 @@ public final class Context implements AutoCloseable, ServletContext {
 	private final Map<String, String> initParameters;
 
 	private final Servlet defaultServlet;
+	
+	private final Map<String, String> defaultServletInitParameters;
 
-	public Context(final Path base, final Map<String, String> initParameters, final Servlet defaultServlet) {
+	public Context(final Path base, final Map<String, String> initParameters, final Servlet defaultServlet, final Map<String, String> defaultServletInitParameters) {
 		this.base = base.toAbsolutePath();
 		this.logger = Logger.getLogger("ServletContext:" + this.base);
 		this.initParameters = Map.copyOf(initParameters);
 		this.defaultServlet = defaultServlet;
+		this.defaultServletInitParameters = defaultServletInitParameters;
 	}
 
 	public void init() throws ServletException {
 		logger.info(() -> "Initializing servlet context");
-		defaultServlet.init(new Config(this));
+		defaultServlet.init(new Config(this, defaultServletInitParameters));
 	}
 
 	@Override

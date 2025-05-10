@@ -14,7 +14,7 @@ import se.narstrom.myr.servlet.TestServlet;
 
 public final class Main {
 	public static void main(final String[] args) throws Exception {
-		try (final Container container = new Container(new Context(Path.of("C:\\webroot"), Map.of(), new TestServlet()))) {
+		try (final Container container = new Container(new Context(Path.of("C:\\webroot"), Map.of(), new TestServlet(), Map.of()))) {
 			container.init();
 			final ServerSocket socket = new ServerSocket();
 			socket.setReuseAddress(true);
