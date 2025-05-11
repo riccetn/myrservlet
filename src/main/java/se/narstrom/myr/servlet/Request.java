@@ -40,6 +40,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
+import se.narstrom.myr.http.cookie.CookieParser;
 import se.narstrom.myr.http.semantics.Method;
 import se.narstrom.myr.http.semantics.Token;
 import se.narstrom.myr.http.v1.AbsolutePath;
@@ -375,7 +376,14 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public Cookie[] getCookies() {
-		return new Cookie[0];
+		final List<Cookie> cookies = new ArrayList<>();
+		final List<String> cookieFields = fields.get(new Token("cookie"));
+		if(cookieFields != null) {
+			for (final String cookieString : cookieFields) {
+				cookies.addAll(CookieParser.parse(cookieString));
+			}
+		}
+		return cookies.toArray(Cookie[]::new);
 	}
 
 	@Override

@@ -50,7 +50,17 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public void addCookie(final Cookie cookie) {
-		throw new UnsupportedOperationException();
+		final StringBuilder cookieString = new StringBuilder();
+		cookieString.append(cookie.getName()).append("=").append(cookie.getValue());
+
+		for (Map.Entry<String, String> attribute : cookie.getAttributes().entrySet()) {
+			if (attribute.getValue().isEmpty()) {
+				cookieString.append(";").append(attribute.getKey());
+			} else
+				cookieString.append(";").append(attribute.getKey()).append("=").append(attribute.getValue());
+		}
+
+		addHeader("Set-Cookie", cookieString.toString());
 	}
 
 	@Override
