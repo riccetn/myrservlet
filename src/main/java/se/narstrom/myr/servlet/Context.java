@@ -1,17 +1,32 @@
 package se.narstrom.myr.servlet;
 
-import jakarta.servlet.*;
-import jakarta.servlet.descriptor.JspConfigDescriptor;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.EventListener;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterRegistration;
+import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRegistration;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.SessionCookieConfig;
+import jakarta.servlet.SessionTrackingMode;
+import jakarta.servlet.descriptor.JspConfigDescriptor;
 
 public final class Context implements AutoCloseable, ServletContext {
 	private final Logger logger;
@@ -22,31 +37,94 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	private final Map<String, String> initParameters;
 
-	private final Servlet defaultServlet;
-	
-	private final Map<String, String> defaultServletInitParameters;
+	private final Map<String, Registration> registrations = new HashMap<>();
+
+	private String defaultServlet;
+
+	private final Map<String, String> extentionMappings = new HashMap<>();
+
+	private final Map<String, String> pathMappings = new HashMap<>();
+
+	private final Map<String, String> exactMappings = new HashMap<>();
+
+	private boolean inited = false;
 
 	public Context(final Path base, final Map<String, String> initParameters, final Servlet defaultServlet, final Map<String, String> defaultServletInitParameters) {
 		this.base = base.toAbsolutePath();
 		this.logger = Logger.getLogger("ServletContext:" + this.base);
 		this.initParameters = Map.copyOf(initParameters);
-		this.defaultServlet = defaultServlet;
-		this.defaultServletInitParameters = defaultServletInitParameters;
+
+		final Registration registration = new Registration(this, "Default Servlet", defaultServlet);
+		registration.setInitParameters(defaultServletInitParameters);
+		this.defaultServlet = registration.getName();
+		this.registrations.put(registration.getName(), registration);
 	}
 
 	public void init() throws ServletException {
+		if (inited)
+			return;
+		inited = true;
 		logger.info(() -> "Initializing servlet context");
-		defaultServlet.init(new Config(this, defaultServletInitParameters));
+		for (final Registration registration : registrations.values()) {
+			registration.getServlet().init(new Config(this, registration.getInitParameters()));
+		}
 	}
 
 	@Override
 	public void close() {
-		defaultServlet.destroy();
+		for (final Registration registration : registrations.values()) {
+			registration.getServlet().destroy();
+		}
 	}
 
 	public void service(final Request request, final ServletResponse response) throws ServletException, IOException {
+		if (!inited)
+			throw new ServletException("Context not inited");
+
+		final String uri = request.getRequestURI();
+
+		String servletName = null;
+		servletName = exactMappings.get(uri);
+
+		// TODO: Path mapping
+
+		// TODO: Extension mapping
+
+		if(servletName == null)
+			servletName = defaultServlet;
+
 		request.setContext(this);
-		defaultServlet.service(request, response);
+		registrations.get(servletName).getServlet().service(request, response);
+	}
+
+	boolean addMapping(final String pattern, final String name) {
+		if (pattern.startsWith("/") && pattern.endsWith("/*")) {
+			if (pathMappings.containsKey(pattern))
+				return false;
+			pathMappings.put(pattern, name);
+			return true;
+		}
+
+		if (pattern.startsWith("*.")) {
+			final String extention = pattern.substring(2);
+			if (extentionMappings.containsKey(extention))
+				return false;
+			extentionMappings.put(extention, name);
+			return true;
+		}
+
+		if (pattern.equals("")) {
+			throw new UnsupportedOperationException("context-root mapping not implemented");
+		}
+
+		if (pattern.equals("/")) {
+			return false;
+		}
+
+		if (exactMappings.containsKey(pattern))
+			return false;
+		exactMappings.put(pattern, name);
+		return true;
 	}
 
 	@Override
@@ -135,7 +213,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public String getServerInfo() {
-		return "Myr Servlet Container/1.0";
+		return "myrservlet/0.2";
 	}
 
 	@Override
@@ -150,7 +228,11 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public boolean setInitParameter(final String name, final String value) {
-		throw new IllegalStateException("Context is already initialized");
+		Objects.requireNonNull(name);
+		if (inited)
+			throw new IllegalStateException("Context inited");
+		final String oldValue = initParameters.put(name, value);
+		return !Objects.equals(value, oldValue);
 	}
 
 	@Override
@@ -178,7 +260,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public String getServletContextName() {
-		throw new UnsupportedOperationException();
+		return "Root Context";
 	}
 
 	@Override
@@ -187,8 +269,12 @@ public final class Context implements AutoCloseable, ServletContext {
 	}
 
 	@Override
-	public ServletRegistration.Dynamic addServlet(String servletName, Servlet servlet) {
-		throw new UnsupportedOperationException();
+	public ServletRegistration.Dynamic addServlet(final String servletName, final Servlet servlet) {
+		if (registrations.containsKey(servletName))
+			return null;
+		final Registration registration = new Registration(this, servletName, servlet);
+		registrations.put(servletName, registration);
+		return registration;
 	}
 
 	@Override
@@ -202,8 +288,12 @@ public final class Context implements AutoCloseable, ServletContext {
 	}
 
 	@Override
-	public <T extends Servlet> T createServlet(Class<T> clazz) throws ServletException {
-		throw new UnsupportedOperationException();
+	public <T extends Servlet> T createServlet(final Class<T> clazz) throws ServletException {
+		try {
+			return clazz.getConstructor().newInstance();
+		} catch (final ReflectiveOperationException ex) {
+			throw new ServletException(ex);
+		}
 	}
 
 	@Override
