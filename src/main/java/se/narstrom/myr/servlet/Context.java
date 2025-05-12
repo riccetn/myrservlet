@@ -86,11 +86,31 @@ public final class Context implements AutoCloseable, ServletContext {
 		String servletName = null;
 		servletName = exactMappings.get(uri);
 
-		// TODO: Path mapping
+		if (servletName == null) {
+			assert uri.charAt(0) == '/';
 
-		// TODO: Extension mapping
+			String path = uri;
+			if (path.charAt(path.length() - 1) == '/')
+				path = path.substring(0, path.length() - 1);
 
-		if(servletName == null)
+			while (!path.isEmpty()) {
+				servletName = pathMappings.get(path);
+				if (servletName == null)
+					break;
+				final int slash = path.lastIndexOf('/');
+				path = path.substring(0, slash);
+			}
+		}
+
+		if (servletName == null) {
+			final int slash = uri.lastIndexOf('/');
+			final int dot = uri.lastIndexOf('.');
+			if (slash < dot) {
+				servletName = extentionMappings.get(uri.substring(dot + 1));
+			}
+		}
+
+		if (servletName == null)
 			servletName = defaultServlet;
 
 		request.setContext(this);
@@ -99,9 +119,10 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	boolean addMapping(final String pattern, final String name) {
 		if (pattern.startsWith("/") && pattern.endsWith("/*")) {
-			if (pathMappings.containsKey(pattern))
+			final String path = pattern.substring(0, pattern.length() - 2);
+			if (pathMappings.containsKey(path))
 				return false;
-			pathMappings.put(pattern, name);
+			pathMappings.put(path, name);
 			return true;
 		}
 
