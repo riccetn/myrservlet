@@ -25,7 +25,7 @@ public final class Container implements AutoCloseable {
 		rootContext.close();
 	}
 
-	public void service(final Request request, final ServletResponse response) throws IOException, ServletException {
+	public void service(final Request request, final Response response) throws IOException, ServletException {
 		rootContext.service(request, response);
 	}
 }

@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import jakarta.servlet.Filter;
@@ -23,10 +24,10 @@ import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.SessionTrackingMode;
 import jakarta.servlet.descriptor.JspConfigDescriptor;
+import jakarta.servlet.http.HttpServletResponse;
 
 public final class Context implements AutoCloseable, ServletContext {
 	private final Logger logger;
@@ -35,11 +36,11 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	private final Map<String, Object> attributes = new HashMap<>();
 
-	private final Map<String, String> initParameters;
+	private final Map<String, String> initParameters = new HashMap<>();
 
 	private final Map<String, Registration> registrations = new HashMap<>();
 
-	private String defaultServlet;
+	private String defaultServlet = null;
 
 	private final Map<String, String> extentionMappings = new HashMap<>();
 
@@ -49,15 +50,9 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	private boolean inited = false;
 
-	public Context(final Path base, final Map<String, String> initParameters, final Servlet defaultServlet, final Map<String, String> defaultServletInitParameters) {
+	public Context(final Path base) {
 		this.base = base.toAbsolutePath();
 		this.logger = Logger.getLogger("ServletContext:" + this.base);
-		this.initParameters = Map.copyOf(initParameters);
-
-		final Registration registration = new Registration(this, "Default Servlet", defaultServlet);
-		registration.setInitParameters(defaultServletInitParameters);
-		this.defaultServlet = registration.getName();
-		this.registrations.put(registration.getName(), registration);
 	}
 
 	public void init() throws ServletException {
@@ -77,7 +72,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		}
 	}
 
-	public void service(final Request request, final ServletResponse response) throws ServletException, IOException {
+	public void service(final Request request, final Response response) throws ServletException, IOException {
 		if (!inited)
 			throw new ServletException("Context not inited");
 
@@ -113,8 +108,22 @@ public final class Context implements AutoCloseable, ServletContext {
 		if (servletName == null)
 			servletName = defaultServlet;
 
-		request.setContext(this);
-		registrations.get(servletName).getServlet().service(request, response);
+		if (servletName == null) {
+			response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not Found");
+			return;
+		}
+
+		try {
+			request.setContext(this);
+			registrations.get(servletName).getServlet().service(request, response);
+		} catch (final Exception ex) {
+			response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
+
+			final LogRecord logRecord = new LogRecord(Level.SEVERE, "Exception thrown when handeling request in servlet '{0}'");
+			logRecord.setParameters(new Object[] { servletName });
+			logRecord.setThrown(ex);
+			logger.log(logRecord);
+		}
 	}
 
 	boolean addMapping(final String pattern, final String name) {
@@ -139,7 +148,10 @@ public final class Context implements AutoCloseable, ServletContext {
 		}
 
 		if (pattern.equals("/")) {
-			return false;
+			if (defaultServlet != null)
+				return false;
+			defaultServlet = name;
+			return true;
 		}
 
 		if (exactMappings.containsKey(pattern))
