@@ -34,6 +34,8 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	private final Path base;
 
+	private final ServletClassLoader classLoader;
+
 	private final Map<String, Object> attributes = new HashMap<>();
 
 	private final Map<String, String> initParameters = new HashMap<>();
@@ -53,6 +55,7 @@ public final class Context implements AutoCloseable, ServletContext {
 	public Context(final Path base) {
 		this.base = base.toAbsolutePath();
 		this.logger = Logger.getLogger("ServletContext:" + this.base);
+		this.classLoader = new ServletClassLoader(this, base, getClass().getClassLoader());
 	}
 
 	public void init() throws ServletException {
@@ -115,6 +118,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 		try {
 			request.setContext(this);
+			Thread.currentThread().setContextClassLoader(classLoader);
 			registrations.get(servletName).getServlet().service(request, response);
 		} catch (final Exception ex) {
 			response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
@@ -123,6 +127,8 @@ public final class Context implements AutoCloseable, ServletContext {
 			logRecord.setParameters(new Object[] { servletName });
 			logRecord.setThrown(ex);
 			logger.log(logRecord);
+		} finally {
+			Thread.currentThread().setContextClassLoader(null);
 		}
 	}
 
@@ -297,8 +303,14 @@ public final class Context implements AutoCloseable, ServletContext {
 	}
 
 	@Override
-	public ServletRegistration.Dynamic addServlet(String servletName, String className) {
-		throw new UnsupportedOperationException();
+	public ServletRegistration.Dynamic addServlet(final String servletName, final String className) {
+		try {
+			@SuppressWarnings("unchecked")
+			final Class<? extends Servlet> clazz = (Class<? extends Servlet>) classLoader.loadClass(className);
+			return addServlet(servletName, clazz);
+		} catch (final ClassNotFoundException ex) {
+			throw new RuntimeException(ex);
+		}
 	}
 
 	@Override
@@ -311,8 +323,12 @@ public final class Context implements AutoCloseable, ServletContext {
 	}
 
 	@Override
-	public ServletRegistration.Dynamic addServlet(String servletName, Class<? extends Servlet> servletClass) {
-		throw new UnsupportedOperationException();
+	public ServletRegistration.Dynamic addServlet(final String servletName, final Class<? extends Servlet> servletClass) {
+		try {
+			return addServlet(servletName, createServlet(servletClass));
+		} catch (ServletException ex) {
+			throw new RuntimeException(ex);
+		}
 	}
 
 	@Override
@@ -416,7 +432,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public ClassLoader getClassLoader() {
-		throw new UnsupportedOperationException();
+		return classLoader;
 	}
 
 	@Override
