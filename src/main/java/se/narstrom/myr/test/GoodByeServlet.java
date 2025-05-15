@@ -12,7 +12,6 @@ public final class GoodByeServlet extends HttpServlet {
 	protected void doGet(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		response.setContentType("text/plain");
 		final String message = "Good Bye World!";
-		response.setContentLength(message.length());
-		response.getWriter().write(message.toString());
+		response.getWriter().write(message);
 	}
 }

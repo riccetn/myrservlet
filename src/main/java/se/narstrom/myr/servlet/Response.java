@@ -48,6 +48,14 @@ public final class Response implements HttpServletResponse {
 		outputStream.write("\r\n".getBytes());
 	}
 
+	public void finish() throws IOException {
+		commit();
+		if (writer != null)
+			writer.close();
+		else if (clientStream != null)
+			clientStream.close();
+	}
+
 	@Override
 	public void addCookie(final Cookie cookie) {
 		final StringBuilder cookieString = new StringBuilder();
@@ -91,22 +99,32 @@ public final class Response implements HttpServletResponse {
 	@Override
 	public ServletOutputStream getOutputStream() throws IOException {
 		if (clientStream == null) {
-			commit();
 			final String contentLength = getHeader("content-length");
+
 			if (contentLength != null) {
 				long length = -1L;
 				try {
 					length = Long.parseLong(contentLength);
 				} catch (final NumberFormatException ex) {
 				}
-				if (length >= 0)
+				if (length >= 0) {
+					setHeader("transfer-encoding", null);
+					commit();
 					clientStream = new LengthOutputStream(outputStream, length);
+				}
 			}
-			if (clientStream == null)
-				throw new UnsupportedOperationException("Missing content-length");
+
+			if (clientStream == null) {
+				setHeader("transfer-encoding", "chunked");
+				setHeader("content-length", null);
+				commit();
+				clientStream = new ChunkedOutputStream(outputStream);
+			}
 		}
+
 		if (writer != null)
 			throw new IllegalStateException("Stream or writer, not both");
+
 		return clientStream;
 	}
 
@@ -115,7 +133,6 @@ public final class Response implements HttpServletResponse {
 		if (writer == null) {
 			if (clientStream != null)
 				throw new IllegalStateException("Stream of writer, not both");
-			commit();
 			writer = new PrintWriter(getOutputStream(), false, Charset.forName(getCharacterEncoding(), StandardCharsets.ISO_8859_1));
 		}
 		return writer;
@@ -222,7 +239,11 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public void setHeader(final String name, final String value) {
-		headerFields.put(new Token(name.toLowerCase()), new ArrayList<>(List.of(value)));
+		final Token token = new Token(name.toLowerCase());
+		if (value != null)
+			headerFields.put(token, new ArrayList<>(List.of(value)));
+		else
+			headerFields.remove(token);
 	}
 
 	@Override

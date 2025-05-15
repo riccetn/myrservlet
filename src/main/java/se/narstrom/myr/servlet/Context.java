@@ -121,12 +121,12 @@ public final class Context implements AutoCloseable, ServletContext {
 			Thread.currentThread().setContextClassLoader(classLoader);
 			registrations.get(servletName).getServlet().service(request, response);
 		} catch (final Exception ex) {
-			response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
-
 			final LogRecord logRecord = new LogRecord(Level.SEVERE, "Exception thrown when handeling request in servlet '{0}'");
 			logRecord.setParameters(new Object[] { servletName });
 			logRecord.setThrown(ex);
 			logger.log(logRecord);
+
+			response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
 		} finally {
 			Thread.currentThread().setContextClassLoader(null);
 		}

@@ -11,8 +11,7 @@ public final class HelloServlet extends HttpServlet {
 	@Override
 	protected void doGet(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		response.setContentType("text/plain");
-		final String message = "Hello World!";
-		response.setContentLength(message.length());
-		response.getWriter().write(message.toString());
+		final String message = "Hello World! " + request.getServletPath();
+		response.getWriter().write(message);
 	}
 }
