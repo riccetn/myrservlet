@@ -117,7 +117,6 @@ public final class Context implements AutoCloseable, ServletContext {
 		}
 
 		try {
-			request.setContext(this);
 			Thread.currentThread().setContextClassLoader(classLoader);
 			registrations.get(servletName).getServlet().service(request, response);
 		} catch (final Exception ex) {
@@ -346,13 +345,13 @@ public final class Context implements AutoCloseable, ServletContext {
 	}
 
 	@Override
-	public ServletRegistration getServletRegistration(String servletName) {
-		throw new UnsupportedOperationException();
+	public ServletRegistration getServletRegistration(final String servletName) {
+		return registrations.get(servletName);
 	}
 
 	@Override
 	public Map<String, ? extends ServletRegistration> getServletRegistrations() {
-		throw new UnsupportedOperationException();
+		return Collections.unmodifiableMap(registrations);
 	}
 
 	@Override
