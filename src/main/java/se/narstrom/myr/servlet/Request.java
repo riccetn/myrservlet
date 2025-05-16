@@ -8,6 +8,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.security.Principal;
 import java.text.ParseException;
@@ -264,7 +265,7 @@ public final class Request implements HttpServletRequest {
 		if (reader == null) {
 			if (clientInputStream != null)
 				throw new IllegalStateException("stream or reader, not both");
-			reader = new BufferedReader(new InputStreamReader(getInputStream(), encoding));
+			reader = new BufferedReader(new InputStreamReader(getInputStream(), (encoding != null) ? encoding : StandardCharsets.ISO_8859_1));
 		}
 		return reader;
 	}
