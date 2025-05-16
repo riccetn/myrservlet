@@ -185,12 +185,14 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public Enumeration<String> getParameterNames() {
-		throw new UnsupportedOperationException();
+		maybeInitParameters();
+		return Collections.enumeration(parameters.keySet());
 	}
 
 	@Override
-	public String[] getParameterValues(String name) {
-		throw new UnsupportedOperationException();
+	public String[] getParameterValues(final String name) {
+		maybeInitParameters();
+		return parameters.get(name).toArray(String[]::new);
 	}
 
 	@Override
