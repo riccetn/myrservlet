@@ -69,6 +69,12 @@
 			<artifactId>servlet-tck-runtime</artifactId>
 			<version>6.1.1</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.jboss.arquillian.junit</groupId>
+					<artifactId>arquillian-junit-core</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>

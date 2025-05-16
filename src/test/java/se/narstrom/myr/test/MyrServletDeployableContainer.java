@@ -68,17 +68,17 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 
 		thread.interrupt();
 
-		try {
-			thread.join();
-		} catch (final InterruptedException ex) {
-			Thread.currentThread().interrupt();
-		}
-
 		Exception ex = null;
 		try {
 			server.close();
 		} catch (final Exception ex2) {
 			ex = ex2;
+		}
+
+		try {
+			thread.join();
+		} catch (final InterruptedException ex2) {
+			Thread.currentThread().interrupt();
 		}
 
 		server = null;
