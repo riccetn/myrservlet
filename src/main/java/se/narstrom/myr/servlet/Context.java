@@ -26,6 +26,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.SessionTrackingMode;
+import jakarta.servlet.UnavailableException;
 import jakarta.servlet.descriptor.JspConfigDescriptor;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -142,8 +143,20 @@ public final class Context implements AutoCloseable, ServletContext {
 		try {
 			registration.init();
 			registrations.get(servletName).getServlet().service(request, response);
+		} catch (final UnavailableException ex) {
+			final LogRecord logRecord = new LogRecord(Level.WARNING, "Servlet ''{0}'' {1} unavailable");
+			logRecord.setParameters(new Object[] { servletName, ex.isPermanent() ? "permanently" : "temporary" });
+			logRecord.setThrown(ex);
+			logger.log(logRecord);
+
+			if (ex.isPermanent()) {
+				registration.destroy();
+				response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not Found");
+			} else {
+				response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Service Unavailable");
+			}
 		} catch (final Exception ex) {
-			final LogRecord logRecord = new LogRecord(Level.SEVERE, "Exception thrown when handeling request in servlet '{0}'");
+			final LogRecord logRecord = new LogRecord(Level.SEVERE, "Exception thrown when handeling request in servlet ''{0}''");
 			logRecord.setParameters(new Object[] { servletName });
 			logRecord.setThrown(ex);
 			logger.log(logRecord);

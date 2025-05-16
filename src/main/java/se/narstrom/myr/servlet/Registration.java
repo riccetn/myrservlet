@@ -40,7 +40,6 @@ public final class Registration implements ServletRegistration.Dynamic {
 	void init() throws ServletException, ClassNotFoundException {
 		if (inited)
 			return;
-		inited = true;
 
 		if (servlet == null) {
 			@SuppressWarnings("unchecked")
@@ -49,11 +48,13 @@ public final class Registration implements ServletRegistration.Dynamic {
 		}
 
 		servlet.init(new Config(context, initParameters));
+		inited = true;
 	}
 
 	void destroy() {
 		if(!inited)
 			return;
+		inited = false;
 		servlet.destroy();
 	}
 
