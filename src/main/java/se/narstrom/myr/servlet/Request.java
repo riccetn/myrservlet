@@ -171,7 +171,11 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public String getParameter(String name) {
-		throw new UnsupportedOperationException();
+		maybeInitParameters();
+		final List<String> values = parameters.get(name);
+		if (values == null)
+			return null;
+		return values.getFirst();
 	}
 
 	@Override
@@ -378,7 +382,7 @@ public final class Request implements HttpServletRequest {
 	public Cookie[] getCookies() {
 		final List<Cookie> cookies = new ArrayList<>();
 		final List<String> cookieFields = fields.get(new Token("cookie"));
-		if(cookieFields != null) {
+		if (cookieFields != null) {
 			for (final String cookieString : cookieFields) {
 				cookies.addAll(CookieParser.parse(cookieString));
 			}

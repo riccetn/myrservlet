@@ -2,9 +2,12 @@ package se.narstrom.myr.test;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.concurrent.Executors;
 
 import org.jboss.arquillian.container.spi.client.container.DeployableContainer;
@@ -134,7 +137,65 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 	@Override
 	public void undeploy(final Archive<?> archive) throws DeploymentException {
 		System.out.println("undeploy(): " + archive.getName());
-		// TODO: Not Implemented
+
+		final String archiveName = archive.getName();
+		if (!archiveName.endsWith(".war"))
+			throw new DeploymentException("Not a WAR file " + archiveName);
+
+		final Path archivePath = base.resolve(archiveName);
+
+		final String name = archiveName.substring(0, archiveName.length() - 4);
+		final Path deploymentPath = base.resolve(name);
+
+		final String contextPath = "/" + name;
+
+		final Context context = container.removeContext(contextPath);
+		context.destroy();
+
+		try {
+			Files.delete(archivePath);
+		} catch (final IOException ex) {
+			ex.printStackTrace();
+		}
+
+		try {
+			Files.walkFileTree(deploymentPath, new SimpleFileVisitor<Path>() {
+				@Override
+				public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) throws IOException {
+					try {
+						Files.delete(file);
+					} catch (IOException ex) {
+						ex.printStackTrace();
+					}
+					return FileVisitResult.CONTINUE;
+				}
+
+				@Override
+				public FileVisitResult visitFileFailed(final Path file, final IOException ex) throws IOException {
+					ex.printStackTrace();
+					try {
+						Files.delete(file);
+					} catch (final IOException ex2) {
+						ex2.printStackTrace();
+					}
+					return FileVisitResult.CONTINUE;
+				}
+
+				@Override
+				public FileVisitResult postVisitDirectory(final Path dir, final IOException ex) throws IOException {
+					if (ex != null)
+						ex.printStackTrace();
+					try {
+						Files.delete(dir);
+					} catch (final IOException ex2) {
+						ex2.printStackTrace();
+					}
+					return FileVisitResult.CONTINUE;
+				}
+			});
+		} catch (final IOException ex) {
+			ex.printStackTrace();
+		}
 	}
 
 }

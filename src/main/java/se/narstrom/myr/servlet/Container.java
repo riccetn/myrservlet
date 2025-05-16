@@ -63,4 +63,8 @@ public final class Container implements AutoCloseable {
 		Objects.requireNonNull(context);
 		contexes.put(context.getContextPath(), context);
 	}
+
+	public Context removeContext(final String contextPath) {
+		return contexes.remove(contextPath);
+	}
 }

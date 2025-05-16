@@ -80,6 +80,16 @@ public final class Context implements AutoCloseable, ServletContext {
 		logger.info("Initializing servlet context");
 	}
 
+	public void destroy() {
+		if (!inited)
+			return;
+		inited = false;
+		logger.info("Destroying servlet context");
+		for (final Registration registration : registrations.values()) {
+			registration.destroy();
+		}
+	}
+
 	@Override
 	public void close() {
 		for (final Registration registration : registrations.values()) {

@@ -120,6 +120,7 @@
 					<dependenciesToScan>jakarta.tck:servlet-tck-runtime</dependenciesToScan>
 					<includes>
 						<include>servlet/tck/api/jakarta_servlet/servlet/ServletTests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/servletrequest/ServletRequestTests.java</include>
 					</includes>
 				</configuration>
 			</plugin>
