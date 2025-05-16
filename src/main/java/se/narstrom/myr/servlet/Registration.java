@@ -9,6 +9,7 @@ import java.util.Set;
 
 import jakarta.servlet.MultipartConfigElement;
 import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.ServletSecurityElement;
 
@@ -17,14 +18,43 @@ public final class Registration implements ServletRegistration.Dynamic {
 
 	private final String name;
 
+	private final String className;
+
 	private final Map<String, String> initParameters = new HashMap<>();
 
 	private Servlet servlet;
 
-	public Registration(final Context context, final String name, final Servlet servlet) {
+	private boolean inited = false;
+
+	public Registration(final Context context, final String name, final String className) {
 		this.context = context;
 		this.name = name;
+		this.className = className;
+	}
+
+	public Registration(final Context context, final String name, final String className, final Servlet servlet) {
+		this(context, name, className);
 		this.servlet = servlet;
+	}
+
+	void init() throws ServletException, ClassNotFoundException {
+		if (inited)
+			return;
+		inited = true;
+
+		if (servlet == null) {
+			@SuppressWarnings("unchecked")
+			final Class<? extends Servlet> clazz = (Class<? extends Servlet>) context.getClassLoader().loadClass(className);
+			servlet = context.createServlet(clazz);
+		}
+
+		servlet.init(new Config(context, initParameters));
+	}
+
+	void destroy() {
+		if(!inited)
+			return;
+		servlet.destroy();
 	}
 
 	Servlet getServlet() {

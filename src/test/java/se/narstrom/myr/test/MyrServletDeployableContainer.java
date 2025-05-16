@@ -15,7 +15,7 @@ import org.jboss.arquillian.container.spi.client.protocol.metadata.HTTPContext;
 import org.jboss.arquillian.container.spi.client.protocol.metadata.ProtocolMetaData;
 import org.jboss.arquillian.container.spi.client.protocol.metadata.Servlet;
 import org.jboss.shrinkwrap.api.Archive;
-import org.jboss.shrinkwrap.api.exporter.ExplodedExporter;
+import org.jboss.shrinkwrap.api.exporter.ZipExporter;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
@@ -51,11 +51,7 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 		try {
 			Files.createDirectories(base);
 
-			final Path rootContextPath = base.resolve("ROOT");
-			Files.createDirectories(rootContextPath);
-
-			final Context rootContext = new Context(rootContextPath);
-			container = new Container(rootContext);
+			container = new Container();
 			server = new Server(new ServerSocket(8080), Executors.newVirtualThreadPerTaskExecutor(), new Http1WorkerFactory(container));
 			thread = new Thread(server);
 
@@ -96,29 +92,40 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 	public ProtocolMetaData deploy(final Archive<?> archive) throws DeploymentException {
 		System.out.println("deploy(): " + archive.getName());
 
-		String name = archive.getName();
-		if (name.endsWith(".war"))
-			name = name.substring(0, name.length() - 4);
+		final String archiveName = archive.getName();
+		if (!archiveName.endsWith(".war"))
+			throw new DeploymentException("Not a WAR file " + archiveName);
 
-		final Path deploymentPath = archive.as(ExplodedExporter.class).exportExploded(base.toFile(), name).toPath();
+		final Path archivePath = base.resolve(archiveName);
+
+		final String name = archiveName.substring(0, archiveName.length() - 4);
+		final Path deploymentPath = base.resolve(name);
+
+		archive.as(ZipExporter.class).exportTo(archivePath.toFile());
+
+		try {
+			ZipUtils.extract(deploymentPath, archivePath);
+		} catch (final IOException ex) {
+			throw new DeploymentException("Could not extract archive", ex);
+		}
+
+		final String contextPath = "/" + name;
 
 		final Context context;
 		try {
-			context = Deployer.deploy(deploymentPath);
+			context = Deployer.deploy(contextPath, deploymentPath);
 			context.init();
-		} catch (final ServletException | IOException ex) {
+		} catch (final IOException ex) {
 			throw new DeploymentException(name, ex);
 		}
 
-		container.addContext(name, context);
+		container.addContext(context);
 
 		final HTTPContext httpMetaData = new HTTPContext("localhost", 8080);
 
-		final String contextRoot = "/" + name;
-
 		for (final ServletRegistration registration : context.getServletRegistrations().values()) {
-			System.out.println("Registration: " + registration.getName() + " " + contextRoot);
-			httpMetaData.add(new Servlet(registration.getName(), contextRoot));
+			System.out.println("Registration: " + registration.getName() + " " + contextPath);
+			httpMetaData.add(new Servlet(registration.getName(), contextPath));
 		}
 
 		return new ProtocolMetaData().addContext(httpMetaData);

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import jakarta.servlet.ServletException;
@@ -12,22 +13,17 @@ import jakarta.servlet.http.HttpServletResponse;
 public final class Container implements AutoCloseable {
 	private final Logger logger = Logger.getLogger(getClass().getName());
 
-	private final Context rootContext;
-
 	private final Map<String, Context> contexes = new HashMap<>();
 
-	public Container(final Context rootContext) {
-		this.rootContext = rootContext;
+	public Container() {
 	}
 
 	public void init() throws ServletException {
 		logger.info("Initializing container");
-		rootContext.init();
 	}
 
 	@Override
 	public void close() {
-		rootContext.close();
 	}
 
 	public void service(final Request request, final Response response) throws IOException, ServletException {
@@ -38,33 +34,33 @@ public final class Container implements AutoCloseable {
 		}
 
 		int slash = uri.indexOf('/', 1);
-		if(slash == -1)
+		if (slash == -1)
 			slash = uri.length();
 
-		final String contextUri = uri.substring(1, slash);
+		final String contextUri = uri.substring(0, slash);
 
 		Context context = null;
 
-		if(!contextUri.isEmpty())
+		if (!contextUri.isEmpty())
 			context = contexes.get(contextUri);
 
-		if(context == null)
-			context = rootContext;
+		if (context == null)
+			context = contexes.get("");
+
+		if (context == null) {
+			logger.log(Level.WARNING, "No context foubnd for URI: {0}", uri);
+			response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not Found");
+			return;
+		}
+
+		logger.log(Level.INFO, "Dispatching: {0} to context {1}", new Object[] { uri, context.getServletContextName() });
 
 		request.setContext(context);
 		context.service(request, response);
 	}
 
-	public void addContext(final String url, final Context context) {
-		Objects.requireNonNull(url);
+	public void addContext(final Context context) {
 		Objects.requireNonNull(context);
-
-		if (url.contains("/"))
-			throw new IllegalArgumentException();
-
-		if (url.isEmpty() || url.equals(".") || url.equals(".."))
-			throw new IllegalArgumentException();
-
-		contexes.put(url, context);
+		contexes.put(context.getContextPath(), context);
 	}
 }

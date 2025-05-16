@@ -52,26 +52,37 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	private boolean inited = false;
 
-	public Context(final Path base) {
+	private final String contextPath;
+
+	private String contextName = "Root Context";
+
+	public Context(final String contextPath, final Path base) {
+		Objects.requireNonNull(contextPath);
+		Objects.requireNonNull(base);
+		if (!contextPath.isEmpty() && !contextPath.startsWith("/"))
+			throw new IllegalArgumentException("Invalid contextPath: " + contextPath);
+		if (contextPath.length() == 1)
+			throw new IllegalArgumentException("Invalid contextPath: " + contextPath);
+		if (!contextPath.isEmpty() && contextPath.indexOf('/', 1) != -1)
+			throw new IllegalArgumentException("Invalid contextPath: " + contextPath);
+
+		this.contextPath = contextPath;
 		this.base = base.toAbsolutePath();
-		this.logger = Logger.getLogger("ServletContext:" + this.base);
+		this.logger = Logger.getLogger("ServletContext:" + contextPath);
 		this.classLoader = new ServletClassLoader(this, base, getClass().getClassLoader());
 	}
 
-	public void init() throws ServletException {
+	public void init() {
 		if (inited)
 			return;
 		inited = true;
-		logger.info(() -> "Initializing servlet context");
-		for (final Registration registration : registrations.values()) {
-			registration.getServlet().init(new Config(this, registration.getInitParameters()));
-		}
+		logger.info("Initializing servlet context");
 	}
 
 	@Override
 	public void close() {
 		for (final Registration registration : registrations.values()) {
-			registration.getServlet().destroy();
+			registration.destroy();
 		}
 	}
 
@@ -79,7 +90,12 @@ public final class Context implements AutoCloseable, ServletContext {
 		if (!inited)
 			throw new ServletException("Context not inited");
 
-		final String uri = request.getRequestURI();
+		String uri = request.getRequestURI();
+
+		if (!uri.startsWith(contextPath))
+			throw new IllegalArgumentException("Not for this context");
+
+		uri = uri.substring(contextPath.length());
 
 		String servletName = null;
 		servletName = exactMappings.get(uri);
@@ -112,12 +128,19 @@ public final class Context implements AutoCloseable, ServletContext {
 			servletName = defaultServlet;
 
 		if (servletName == null) {
+			logger.log(Level.WARNING, "No servlet found for {0}", uri);
 			response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not Found");
 			return;
 		}
 
+		logger.log(Level.INFO, "Dispatching: {0} to servlet {1}", new Object[] { uri, servletName });
+
+		final Registration registration = registrations.get(servletName);
+
+		Thread.currentThread().setContextClassLoader(classLoader);
+
 		try {
-			Thread.currentThread().setContextClassLoader(classLoader);
+			registration.init();
 			registrations.get(servletName).getServlet().service(request, response);
 		} catch (final Exception ex) {
 			final LogRecord logRecord = new LogRecord(Level.SEVERE, "Exception thrown when handeling request in servlet '{0}'");
@@ -167,7 +190,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public String getContextPath() {
-		return "";
+		return contextPath;
 	}
 
 	@Override
@@ -298,7 +321,14 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public String getServletContextName() {
-		return "Root Context";
+		return contextName;
+	}
+
+	void setServletContextName(final String name) {
+		Objects.requireNonNull(name);
+		if (inited)
+			throw new IllegalStateException("Context already inited");
+		this.contextName = name;
 	}
 
 	@Override
@@ -316,7 +346,7 @@ public final class Context implements AutoCloseable, ServletContext {
 	public ServletRegistration.Dynamic addServlet(final String servletName, final Servlet servlet) {
 		if (registrations.containsKey(servletName))
 			return null;
-		final Registration registration = new Registration(this, servletName, servlet);
+		final Registration registration = new Registration(this, servletName, servlet.getClass().getName(), servlet);
 		registrations.put(servletName, registration);
 		return registration;
 	}

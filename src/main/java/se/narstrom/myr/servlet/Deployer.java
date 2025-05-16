@@ -13,11 +13,13 @@ import jakarta.xml.bind.JAXB;
 
 public final class Deployer {
 
-	public static final Context deploy(final Path base) throws IOException {
+	public static final Context deploy(final String contextPath, final Path base) throws IOException {
 		final Path descriptor = base.resolve("WEB-INF/web.xml");
 		final WebAppType webApp = JAXB.unmarshal(descriptor.toFile(), WebAppType.class);
 
-		final Context context = new Context(base);
+		final Context context = new Context(contextPath, base);
+
+		context.setServletContextName(webApp.getDisplayName().getFirst().getValue());
 
 		for (final ParamValueType param : webApp.getContextParam()) {
 			context.setInitParameter(param.getParamName().getValue(), param.getParamValue().getValue());
