@@ -3,11 +3,11 @@ package se.narstrom.myr.servlet;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
-import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.security.Principal;
 import java.text.ParseException;
@@ -71,6 +71,8 @@ public final class Request implements HttpServletRequest {
 
 	private ServletInputStream clientInputStream = null;
 
+	private BufferedReader reader = null;
+
 	private Charset encoding = null;
 
 	public Request(final Method method, final AbsolutePath path, final Query query, final Map<Token, List<String>> fields, final Socket socket, final InputStream inputStream) {
@@ -113,7 +115,7 @@ public final class Request implements HttpServletRequest {
 		}
 
 		if (encoding == null)
-			encoding = StandardCharsets.UTF_8;
+			return null;
 
 		return encoding.name();
 	}
@@ -166,6 +168,8 @@ public final class Request implements HttpServletRequest {
 				clientInputStream = new LengthInputStream(null, 0L);
 			}
 		}
+		if (reader != null)
+			throw new IllegalStateException("stream or reader, not both");
 		return clientInputStream;
 	}
 
@@ -257,7 +261,12 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public BufferedReader getReader() throws IOException {
-		throw new UnsupportedOperationException();
+		if (reader == null) {
+			if (clientInputStream != null)
+				throw new IllegalStateException("stream or reader, not both");
+			reader = new BufferedReader(new InputStreamReader(getInputStream(), encoding));
+		}
+		return reader;
 	}
 
 	@Override
