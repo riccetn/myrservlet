@@ -311,8 +311,8 @@ public final class Request implements HttpServletRequest {
 	}
 
 	@Override
-	public RequestDispatcher getRequestDispatcher(String path) {
-		throw new UnsupportedOperationException();
+	public RequestDispatcher getRequestDispatcher(final String path) {
+		return new Dispatcher();
 	}
 
 	@Override
