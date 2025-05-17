@@ -8,10 +8,8 @@ import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
-import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.security.Principal;
-import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -49,6 +47,7 @@ import se.narstrom.myr.http.v1.AbsolutePath;
 import se.narstrom.myr.mime.MediaType;
 import se.narstrom.myr.uri.Query;
 import se.narstrom.myr.uri.UrlEncoding;
+import se.narstrom.myr.util.Result;
 
 public final class Request implements HttpServletRequest {
 	private final Logger logger = Logger.getLogger(getClass().getName());
@@ -75,7 +74,7 @@ public final class Request implements HttpServletRequest {
 
 	private BufferedReader reader = null;
 
-	private Charset encoding = null;
+	private Result<Charset, UnsupportedEncodingException> encoding;
 
 	private List<Locale> locales = null;
 
@@ -104,24 +103,13 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public String getCharacterEncoding() {
-		if (encoding != null)
-			return encoding.name();
+		maybeInitCharacterEncoding();
 
-		final String contentType = getContentType();
-		if (contentType != null) {
-			try {
-				final String charset = MediaType.parse(contentType).parameters().get("charset");
-				if (charset != null)
-					encoding = Charset.forName(charset);
-			} catch (final IllegalCharsetNameException | UnsupportedCharsetException | ParseException ex) {
-				logger.log(Level.WARNING, "Failed to get charset from content-type header field", ex);
-			}
-		}
-
-		if (encoding == null)
-			return null;
-
-		return encoding.name();
+		return switch (encoding) {
+			case Result.Ok(Charset set) when set == null -> null;
+			case Result.Ok(Charset set) -> set.name();
+			case Result.Error(UnsupportedEncodingException ex) -> ex.getMessage();
+		};
 	}
 
 	@Override
@@ -129,7 +117,7 @@ public final class Request implements HttpServletRequest {
 		if (reader != null || parameters != null)
 			return;
 		try {
-			this.encoding = Charset.forName(encoding);
+			this.encoding = new Result.Ok<>(Charset.forName(encoding));
 		} catch (final IllegalCharsetNameException | UnsupportedCharsetException ex) {
 			throw new UnsupportedEncodingException(ex.toString());
 		}
@@ -139,7 +127,27 @@ public final class Request implements HttpServletRequest {
 	public void setCharacterEncoding(final Charset encoding) {
 		if (reader != null || parameters != null)
 			return;
-		this.encoding = encoding;
+		this.encoding = new Result.Ok<>(encoding);
+	}
+
+	private void maybeInitCharacterEncoding() {
+		if (encoding == null) {
+			final String contentType = getContentType();
+			if (contentType != null) {
+				final String charset = MediaType.parse(contentType).parameters().get("charset");
+				if (charset != null) {
+					try {
+						encoding = new Result.Ok<>(Charset.forName(charset));
+					} catch (final IllegalCharsetNameException | UnsupportedCharsetException ex) {
+						logger.log(Level.WARNING, "Failed to get charset from content-type header field", ex);
+						encoding = new Result.Error<>(new UnsupportedEncodingException(charset));
+					}
+				}
+			}
+
+			if(encoding == null)
+				encoding = new Result.Ok<>(null);
+		}
 	}
 
 	@Override
@@ -227,10 +235,7 @@ public final class Request implements HttpServletRequest {
 		final String contentType = getContentType();
 		MediaType mediaType = null;
 		if (contentType != null) {
-			try {
-				mediaType = MediaType.parse(contentType);
-			} catch (final ParseException ex) {
-			}
+			mediaType = MediaType.parse(contentType);
 		}
 
 		if (mediaType != null && mediaType.type().equals("application") && mediaType.subtype().equals("x-www-form-urlencoded")) {
@@ -239,15 +244,15 @@ public final class Request implements HttpServletRequest {
 			byte[] contentBytes = null;
 			try {
 				contentBytes = getInputStream().readAllBytes();
-			} catch (final IOException ex) {
-				logger.log(Level.SEVERE, "Failed to read body for parameters", ex);
-			}
-			if (contentBytes != null) {
-				final String content = new String(contentBytes, encoding);
-				final Map<String, List<String>> contentParams = UrlEncoding.parse(content);
-				for (final Map.Entry<String, List<String>> ent : contentParams.entrySet()) {
-					parameters.computeIfAbsent(ent.getKey(), _ -> new ArrayList<>()).addAll(ent.getValue());
+				if (contentBytes != null) {
+					final String content = new String(contentBytes, encoding.value());
+					final Map<String, List<String>> contentParams = UrlEncoding.parse(content);
+					for (final Map.Entry<String, List<String>> ent : contentParams.entrySet()) {
+						parameters.computeIfAbsent(ent.getKey(), _ -> new ArrayList<>()).addAll(ent.getValue());
+					}
 				}
+			} catch (final IOException ex) {
+				throw new IllegalStateException(ex);
 			}
 		}
 	}
@@ -277,7 +282,14 @@ public final class Request implements HttpServletRequest {
 		if (reader == null) {
 			if (clientInputStream != null)
 				throw new IllegalStateException("stream or reader, not both");
-			reader = new BufferedReader(new InputStreamReader(getInputStream(), (encoding != null) ? encoding : StandardCharsets.ISO_8859_1));
+
+			maybeInitCharacterEncoding();
+
+			Charset charset = encoding.value();
+			if (charset == null)
+				charset = Charset.defaultCharset();
+
+			reader = new BufferedReader(new InputStreamReader(getInputStream(), charset));
 		}
 		return reader;
 	}

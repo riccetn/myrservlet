@@ -1,6 +1,5 @@
 package se.narstrom.myr.mime;
 
-import java.text.ParseException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -26,7 +25,7 @@ public record MediaType(String type, String subtype, Map<String, String> paramet
 	}
 
 	// https://datatracker.ietf.org/doc/html/rfc2045#section-5.1
-	public static MediaType parse(final String input) throws ParseException {
+	public static MediaType parse(final String input) {
 		char ch = '\0';
 		int i = 0;
 		final StringBuilder type = new StringBuilder();
@@ -40,10 +39,10 @@ public record MediaType(String type, String subtype, Map<String, String> paramet
 		}
 
 		if (type.isEmpty())
-			throw new ParseException("Expected token", i);
+			throw new IllegalArgumentException("Expected token");
 
 		if (ch != '/')
-			throw new ParseException("Expected '/'", i);
+			throw new IllegalArgumentException("Expected '/'");
 		++i;
 
 		for (; i < input.length(); ++i) {
@@ -54,7 +53,7 @@ public record MediaType(String type, String subtype, Map<String, String> paramet
 		}
 
 		if (subtype.isEmpty())
-			throw new ParseException("Expected token", i);
+			throw new IllegalArgumentException("Expected token");
 
 		final Map<String, String> parameters = new HashMap<>();
 
@@ -69,7 +68,7 @@ public record MediaType(String type, String subtype, Map<String, String> paramet
 			}
 
 			if (ch != ';')
-				throw new ParseException("Expected ';'", i);
+				throw new IllegalArgumentException("Expected ';'");
 			++i;
 
 			for (; i < input.length(); ++i) {
@@ -86,10 +85,10 @@ public record MediaType(String type, String subtype, Map<String, String> paramet
 			}
 
 			if (name.isEmpty())
-				throw new ParseException("Expected token", i);
+				throw new IllegalArgumentException("Expected token");
 
 			if (ch != '=')
-				throw new ParseException("Expected '='", i);
+				throw new IllegalArgumentException("Expected '='");
 			++i;
 
 			boolean quote = false;
@@ -97,14 +96,14 @@ public record MediaType(String type, String subtype, Map<String, String> paramet
 				ch = input.charAt(i);
 				if (quote) {
 					switch (ch) {
-					case '\\' -> {
-						if (i == input.length() - 1)
-							throw new ParseException("unfinished quoted-pair at end of input", i);
-						ch = input.charAt(i++);
-						value.append(ch);
-					}
-					case '\"' -> quote = false;
-					default -> value.append(ch);
+						case '\\' -> {
+							if (i == input.length() - 1)
+								throw new IllegalArgumentException("unfinished quoted-pair at end of input");
+							ch = input.charAt(i++);
+							value.append(ch);
+						}
+						case '\"' -> quote = false;
+						default -> value.append(ch);
 					}
 				} else {
 					if (ch == '"')
@@ -117,10 +116,10 @@ public record MediaType(String type, String subtype, Map<String, String> paramet
 			}
 
 			if (quote)
-				throw new ParseException("Unclosed quoted-string", i);
+				throw new IllegalArgumentException("Unclosed quoted-string");
 
 			if (value.isEmpty())
-				throw new ParseException("Empty parameter value", i);
+				throw new IllegalArgumentException("Empty parameter value");
 
 			parameters.put(name.toString(), value.toString());
 		}
@@ -168,10 +167,8 @@ public record MediaType(String type, String subtype, Map<String, String> paramet
 	}
 
 	private static boolean isTokenChar(final char tchar) {
-		return tchar == '!' || tchar == '#' || tchar == '$' || tchar == '%' || tchar == '&' || tchar == '\''
-				|| tchar == '*' || tchar == '+' || tchar == '-' || tchar == '.' || tchar == '^' || tchar == '_'
-				|| tchar == '`' || tchar == '|' || tchar == '~' || (tchar >= '0' && tchar <= '9')
-				|| (tchar >= 'A' && tchar <= 'Z') || (tchar >= 'a' && tchar <= 'z');
+		return tchar == '!' || tchar == '#' || tchar == '$' || tchar == '%' || tchar == '&' || tchar == '\'' || tchar == '*' || tchar == '+' || tchar == '-' || tchar == '.' || tchar == '^'
+				|| tchar == '_' || tchar == '`' || tchar == '|' || tchar == '~' || (tchar >= '0' && tchar <= '9') || (tchar >= 'A' && tchar <= 'Z') || (tchar >= 'a' && tchar <= 'z');
 	}
 
 	private static final void maybeQuote(final StringBuilder sb, final String value) {

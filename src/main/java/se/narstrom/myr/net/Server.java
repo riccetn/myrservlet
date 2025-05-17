@@ -3,6 +3,7 @@ package se.narstrom.myr.net;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.concurrent.Executor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -66,6 +67,10 @@ public final class Server implements Runnable, AutoCloseable {
 				final Socket socket = serverSocket.accept();
 				executor.execute(() -> clientEntry(socket));
 			}
+		} catch (final SocketException ex) {
+			if (ex.getMessage().equals("Socket closed"))
+				return;
+			ex.printStackTrace();
 		} catch (final IOException ex) {
 			ex.printStackTrace();
 		}
