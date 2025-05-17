@@ -21,6 +21,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Locale.LanguageRange;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -75,6 +76,8 @@ public final class Request implements HttpServletRequest {
 	private BufferedReader reader = null;
 
 	private Charset encoding = null;
+
+	private List<Locale> locales = null;
 
 	public Request(final Method method, final AbsolutePath path, final Query query, final Map<Token, List<String>> fields, final Socket socket, final InputStream inputStream) {
 		this.method = method;
@@ -304,12 +307,29 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public Locale getLocale() {
-		throw new UnsupportedOperationException();
+		maybeInitLocales();
+		return locales.getFirst();
 	}
 
 	@Override
 	public Enumeration<Locale> getLocales() {
-		throw new UnsupportedOperationException();
+		maybeInitLocales();
+		return Collections.enumeration(locales);
+	}
+
+	private void maybeInitLocales() {
+		if (locales != null)
+			return;
+
+		final String acceptLanguage = getHeader("accept-language");
+		if (acceptLanguage != null) {
+			final List<LanguageRange> ranges = LanguageRange.parse(acceptLanguage);
+			if (!ranges.isEmpty())
+				locales = ranges.stream().map(range -> Locale.forLanguageTag(range.getRange())).toList();
+		}
+
+		if (locales == null)
+			locales = List.of(Locale.getDefault());
 	}
 
 	@Override
