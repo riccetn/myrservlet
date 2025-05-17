@@ -196,7 +196,10 @@ public final class Request implements HttpServletRequest {
 	@Override
 	public String[] getParameterValues(final String name) {
 		maybeInitParameters();
-		return parameters.get(name).toArray(String[]::new);
+		final List<String> values = parameters.get(name);
+		if (values == null)
+			return null;
+		return values.toArray(String[]::new);
 	}
 
 	@Override
