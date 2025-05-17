@@ -123,6 +123,8 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public void setCharacterEncoding(final String encoding) throws UnsupportedEncodingException {
+		if (reader != null || parameters != null)
+			return;
 		try {
 			this.encoding = Charset.forName(encoding);
 		} catch (final IllegalCharsetNameException | UnsupportedCharsetException ex) {
@@ -132,6 +134,8 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public void setCharacterEncoding(final Charset encoding) {
+		if (reader != null || parameters != null)
+			return;
 		this.encoding = encoding;
 	}
 
