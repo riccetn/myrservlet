@@ -55,8 +55,10 @@ public final class Container implements AutoCloseable {
 
 		logger.log(Level.INFO, "Dispatching: {0} to context {1}", new Object[] { uri, context.getServletContextName() });
 
+		final String contextRelativePath = uri.substring(contextUri.length());
+		final Dispatcher dispatcher = context.getRequestDispatcher(contextRelativePath);
 		request.setContext(context);
-		context.service(request, response);
+		dispatcher.request(request, response);
 	}
 
 	public void addContext(final Context context) {

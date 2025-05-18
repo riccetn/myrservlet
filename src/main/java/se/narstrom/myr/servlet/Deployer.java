@@ -44,6 +44,9 @@ public final class Deployer {
 			}
 		}
 
+		final ServletRegistration.Dynamic registration = context.addServlet("Default Servlet", new DefaultServlet());
+		registration.addMapping("/");
+
 		return context;
 	}
 }

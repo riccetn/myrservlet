@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import jakarta.servlet.Filter;
@@ -26,9 +25,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.SessionTrackingMode;
-import jakarta.servlet.UnavailableException;
 import jakarta.servlet.descriptor.JspConfigDescriptor;
-import jakarta.servlet.http.HttpServletResponse;
 
 public final class Context implements AutoCloseable, ServletContext {
 	private final Logger logger;
@@ -94,86 +91,6 @@ public final class Context implements AutoCloseable, ServletContext {
 	public void close() {
 		for (final Registration registration : registrations.values()) {
 			registration.destroy();
-		}
-	}
-
-	public void service(final Request request, final Response response) throws ServletException, IOException {
-		if (!inited)
-			throw new ServletException("Context not inited");
-
-		String uri = request.getRequestURI();
-
-		if (!uri.startsWith(contextPath))
-			throw new IllegalArgumentException("Not for this context");
-
-		uri = uri.substring(contextPath.length());
-
-		String servletName = null;
-		servletName = exactMappings.get(uri);
-
-		if (servletName == null) {
-			assert uri.charAt(0) == '/';
-
-			String path = uri;
-			if (path.charAt(path.length() - 1) == '/')
-				path = path.substring(0, path.length() - 1);
-
-			while (!path.isEmpty()) {
-				servletName = pathMappings.get(path);
-				if (servletName == null)
-					break;
-				final int slash = path.lastIndexOf('/');
-				path = path.substring(0, slash);
-			}
-		}
-
-		if (servletName == null) {
-			final int slash = uri.lastIndexOf('/');
-			final int dot = uri.lastIndexOf('.');
-			if (slash < dot) {
-				servletName = extentionMappings.get(uri.substring(dot + 1));
-			}
-		}
-
-		if (servletName == null)
-			servletName = defaultServlet;
-
-		if (servletName == null) {
-			logger.log(Level.WARNING, "No servlet found for {0}", uri);
-			response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not Found");
-			return;
-		}
-
-		logger.log(Level.INFO, "Dispatching: {0} to servlet {1}", new Object[] { uri, servletName });
-
-		final Registration registration = registrations.get(servletName);
-
-		Thread.currentThread().setContextClassLoader(classLoader);
-
-		try {
-			registration.init();
-			registrations.get(servletName).getServlet().service(request, response);
-		} catch (final UnavailableException ex) {
-			final LogRecord logRecord = new LogRecord(Level.WARNING, "Servlet ''{0}'' {1} unavailable");
-			logRecord.setParameters(new Object[] { servletName, ex.isPermanent() ? "permanently" : "temporary" });
-			logRecord.setThrown(ex);
-			logger.log(logRecord);
-
-			if (ex.isPermanent()) {
-				registration.destroy();
-				response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not Found");
-			} else {
-				response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Service Unavailable");
-			}
-		} catch (final Exception ex) {
-			final LogRecord logRecord = new LogRecord(Level.SEVERE, "Exception thrown when handeling request in servlet ''{0}''");
-			logRecord.setParameters(new Object[] { servletName });
-			logRecord.setThrown(ex);
-			logger.log(logRecord);
-
-			response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
-		} finally {
-			Thread.currentThread().setContextClassLoader(null);
 		}
 	}
 
@@ -271,8 +188,49 @@ public final class Context implements AutoCloseable, ServletContext {
 	}
 
 	@Override
-	public RequestDispatcher getRequestDispatcher(String path) {
-		throw new UnsupportedOperationException();
+	public Dispatcher getRequestDispatcher(String uri) {
+		final int questionMark = uri.indexOf('?');
+		if (questionMark > -1)
+			uri = uri.substring(0, questionMark);
+
+		String servletName = null;
+		servletName = exactMappings.get(uri);
+
+		if (servletName == null) {
+			assert uri.charAt(0) == '/';
+
+			String path = uri;
+			if (path.charAt(path.length() - 1) == '/')
+				path = path.substring(0, path.length() - 1);
+
+			while (!path.isEmpty()) {
+				servletName = pathMappings.get(path);
+				if (servletName == null)
+					break;
+				final int slash = path.lastIndexOf('/');
+				path = path.substring(0, slash);
+			}
+		}
+
+		if (servletName == null) {
+			final int slash = uri.lastIndexOf('/');
+			final int dot = uri.lastIndexOf('.');
+			if (slash < dot) {
+				servletName = extentionMappings.get(uri.substring(dot + 1));
+			}
+		}
+
+		if (servletName == null)
+			servletName = defaultServlet;
+
+		if (servletName == null) {
+			logger.log(Level.WARNING, "No servlet found for {0}", uri);
+			throw new RuntimeException("No Servlet");
+		}
+
+		logger.log(Level.INFO, "Creating Dispatcher for uri {0} to servlet {1}", new Object[] { uri, servletName });
+
+		return new Dispatcher(this, registrations.get(servletName));
 	}
 
 	@Override

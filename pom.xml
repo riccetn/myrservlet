@@ -121,6 +121,8 @@
 					<includes>
 						<include>servlet/tck/api/jakarta_servlet/servlet/ServletTests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletrequest/ServletRequestTests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/servletrequest1/ServletRequest1Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/servletrequest30/ServletRequest30Tests.java</include>
 					</includes>
 				</configuration>
 			</plugin>

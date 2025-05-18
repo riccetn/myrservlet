@@ -145,7 +145,7 @@ public final class Request implements HttpServletRequest {
 				}
 			}
 
-			if(encoding == null)
+			if (encoding == null)
 				encoding = new Result.Ok<>(null);
 		}
 	}
@@ -351,7 +351,9 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public RequestDispatcher getRequestDispatcher(final String path) {
-		return new Dispatcher();
+		if (!path.isEmpty() && path.charAt(0) != '/')
+			throw new UnsupportedOperationException("Relative path dispatcher");
+		return getServletContext().getRequestDispatcher(path);
 	}
 
 	@Override
