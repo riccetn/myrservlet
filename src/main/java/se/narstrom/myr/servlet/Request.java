@@ -65,7 +65,7 @@ public final class Request implements HttpServletRequest {
 
 	private final Map<String, Object> attributes = new HashMap<>();
 
-	private final Async asyncContext = new Async();
+	private final AsyncHandler asyncContext = new AsyncHandler();
 
 	private Context context;
 
@@ -411,7 +411,7 @@ public final class Request implements HttpServletRequest {
 	}
 
 	@Override
-	public Async getAsyncContext() {
+	public AsyncHandler getAsyncContext() {
 		return asyncContext;
 	}
 

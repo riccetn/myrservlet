@@ -11,7 +11,7 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-public final class Async implements AsyncContext {
+public final class AsyncHandler implements AsyncContext {
 	private Request originalRequest = null;
 
 	private Response originalResponse = null;
