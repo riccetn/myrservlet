@@ -390,12 +390,16 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public AsyncContext startAsync() throws IllegalStateException {
+		if(!asyncSupported)
+			throw new IllegalStateException("Async not supported in this context");
 		asyncContext.startAsync();
 		return asyncContext;
 	}
 
 	@Override
 	public AsyncContext startAsync(final ServletRequest servletRequest, final ServletResponse servletResponse) throws IllegalStateException {
+		if(!asyncSupported)
+			throw new IllegalStateException("Async not supported in this context");
 		asyncContext.startAsync(servletRequest, servletResponse);
 		return asyncContext;
 	}

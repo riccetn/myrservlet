@@ -57,7 +57,17 @@ public final class Container implements AutoCloseable {
 
 		final String contextRelativePath = uri.substring(contextUri.length());
 		request.setContext(context);
-		request.getAsyncContext().service(request, response);
+		try {
+			request.getAsyncContext().service(request, response);
+		} catch (final Exception ex) {
+			try {
+				response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
+			} catch (final Exception ex2) {
+				ex.addSuppressed(ex2);
+			}
+			logger.log(Level.SEVERE, "Uncauth exception", ex);
+			throw ex;
+		}
 	}
 
 	public void addContext(final Context context) {

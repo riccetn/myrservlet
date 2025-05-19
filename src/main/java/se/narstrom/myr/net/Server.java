@@ -71,7 +71,7 @@ public final class Server implements Runnable, AutoCloseable {
 			if (ex.getMessage().equals("Socket closed"))
 				return;
 			ex.printStackTrace();
-		} catch (final IOException ex) {
+		} catch (final Exception ex) {
 			ex.printStackTrace();
 		}
 	}
@@ -84,12 +84,17 @@ public final class Server implements Runnable, AutoCloseable {
 				Thread.currentThread().setName("Client " + socket.getLocalSocketAddress() + " <- " + socket.getRemoteSocketAddress());
 				final ServerClientWorker worker = clientWorkerFactory.createWorker(socket);
 				worker.run();
-				socket.close();
 			} finally {
 				Thread.currentThread().setName(oldName);
 			}
 		} catch (final Exception ex) {
 			logger.log(Level.SEVERE, ex, () -> "Error handling connection from " + socket.getRemoteSocketAddress());
+		} finally {
+			try {
+				socket.close();
+			} catch (final IOException ex) {
+				ex.printStackTrace();
+			}
 		}
 	}
 }
