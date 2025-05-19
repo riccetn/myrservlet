@@ -29,7 +29,6 @@ import jakarta.servlet.AsyncContext;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletConnection;
-import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.ServletRequest;
@@ -80,6 +79,8 @@ public final class Request implements HttpServletRequest {
 
 	private List<Locale> locales = null;
 
+	private boolean asyncSupported;
+
 	public Request(final Method method, final AbsolutePath path, final Query query, final Map<Token, List<String>> fields, final Socket socket, final InputStream inputStream) {
 		this.method = method;
 		this.path = path;
@@ -89,8 +90,12 @@ public final class Request implements HttpServletRequest {
 		this.inputStream = inputStream;
 	}
 
-	public void setContext(final Context context) {
+	void setContext(final Context context) {
 		this.context = context;
+	}
+
+	void setAsyncSupported(final boolean asyncSupported) {
+		this.asyncSupported = asyncSupported;
 	}
 
 	@Override
@@ -379,7 +384,7 @@ public final class Request implements HttpServletRequest {
 	}
 
 	@Override
-	public ServletContext getServletContext() {
+	public Context getServletContext() {
 		return context;
 	}
 
@@ -402,7 +407,7 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public boolean isAsyncSupported() {
-		return true;
+		return asyncSupported;
 	}
 
 	@Override

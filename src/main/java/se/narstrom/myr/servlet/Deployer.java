@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import ee.jakarta.xml.ns.jakartaee.ParamValueType;
 import ee.jakarta.xml.ns.jakartaee.ServletMappingType;
 import ee.jakarta.xml.ns.jakartaee.ServletType;
+import ee.jakarta.xml.ns.jakartaee.TrueFalseType;
 import ee.jakarta.xml.ns.jakartaee.UrlPatternType;
 import ee.jakarta.xml.ns.jakartaee.WebAppType;
 import jakarta.servlet.ServletRegistration;
@@ -34,6 +35,10 @@ public final class Deployer {
 			for (final ParamValueType param : servlet.getInitParam()) {
 				registration.setInitParameter(param.getParamName().getValue(), param.getParamValue().getValue());
 			}
+
+			final TrueFalseType asyncSupported = servlet.getAsyncSupported();
+			if(asyncSupported != null)
+				registration.setAsyncSupported(asyncSupported.isValue());
 		}
 
 		for (final ServletMappingType mapping : webApp.getServletMapping()) {

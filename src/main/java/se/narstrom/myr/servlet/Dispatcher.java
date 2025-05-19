@@ -25,7 +25,12 @@ public final class Dispatcher implements RequestDispatcher {
 		this.registration = registration;
 	}
 
-	public void request(final Request request, final Response response) throws ServletException, IOException {
+	Registration getRegistration() {
+		return registration;
+	}
+
+	public void request(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
+		logger.log(Level.INFO, "DISPATCH for servlet ''{0}, asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
 		dispatch(request, response);
 	}
 
@@ -41,7 +46,7 @@ public final class Dispatcher implements RequestDispatcher {
 		dispatch(new IncludeRequest((HttpServletRequest) request), (HttpServletResponse) response);
 	}
 
-	void dispatch(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
+	private void dispatch(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		Thread.currentThread().setContextClassLoader(context.getClassLoader());
 
 		try {

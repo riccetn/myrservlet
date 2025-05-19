@@ -12,6 +12,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 public final class Async implements AsyncContext {
+	private Request originalRequest = null;
+
+	private Response originalResponse = null;
+
 	private HttpServletRequest request = null;
 
 	private HttpServletResponse response = null;
@@ -25,9 +29,9 @@ public final class Async implements AsyncContext {
 	synchronized void service(final Request request, final Response response) throws ServletException, IOException, InterruptedException {
 		if (state != State.DISPATCHING)
 			throw new IllegalStateException();
-		this.request = request;
-		this.response = response;
-		this.context = (Context) request.getServletContext();
+		this.request = this.originalRequest = request;
+		this.response = this.originalResponse = response;
+		this.context = request.getServletContext();
 
 		final String uri = request.getRequestURI();
 		final String contextPath = context.getContextPath();
@@ -36,25 +40,29 @@ public final class Async implements AsyncContext {
 
 		this.path = uri.substring(contextPath.length());
 
-		while(state == State.DISPATCHING) {
+		while (state == State.DISPATCHING) {
+			final Dispatcher dispatcher = context.getRequestDispatcher(path);
+			originalRequest.setAsyncSupported(dispatcher.getRegistration().isAsyncSupported());
+
 			this.state = State.DISPATCHED;
-			context.getRequestDispatcher(path).dispatch(this.request, this.response);
-	
-			state = switch(state) {
+
+			context.getRequestDispatcher(path).request(this.request, this.response);
+
+			state = switch (state) {
 				case DISPATCHED, COMPLETING -> State.COMPLETED;
 				case ASYNC_STARTED -> State.ASYNC_WAIT;
 				case REDISPATCHING -> State.DISPATCHING;
 				default -> throw new IllegalStateException();
 			};
 
-			while(state == State.ASYNC_WAIT)
+			while (state == State.ASYNC_WAIT)
 				wait();
 		}
 
 		assert state == State.COMPLETED;
 	}
 
-	synchronized void startAsync()  {
+	synchronized void startAsync() {
 		if (state != State.DISPATCHED)
 			throw new IllegalStateException();
 		this.state = State.ASYNC_STARTED;
@@ -67,7 +75,7 @@ public final class Async implements AsyncContext {
 	}
 
 	synchronized boolean isAsyncStarted() {
-		return switch(state) {
+		return switch (state) {
 			case ASYNC_STARTED, REDISPATCHING, COMPLETING -> true;
 			default -> false;
 		};
@@ -85,7 +93,7 @@ public final class Async implements AsyncContext {
 
 	@Override
 	public synchronized boolean hasOriginalRequestAndResponse() {
-		return request instanceof Request && response instanceof Response;
+		return request == originalRequest && response == originalResponse;
 	}
 
 	@Override
@@ -120,7 +128,7 @@ public final class Async implements AsyncContext {
 
 	@Override
 	public synchronized void complete() {
-		state = switch(state) {
+		state = switch (state) {
 			case ASYNC_STARTED -> State.COMPLETING;
 			case ASYNC_WAIT -> State.COMPLETED;
 			default -> throw new IllegalStateException();
@@ -147,7 +155,7 @@ public final class Async implements AsyncContext {
 	public <T extends AsyncListener> T createListener(final Class<T> clazz) throws ServletException {
 		try {
 			return clazz.getConstructor().newInstance();
-		} catch(final ReflectiveOperationException ex) {
+		} catch (final ReflectiveOperationException ex) {
 			throw new ServletException(ex);
 		}
 	}

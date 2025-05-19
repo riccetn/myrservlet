@@ -26,6 +26,8 @@ public final class Registration implements ServletRegistration.Dynamic {
 
 	private boolean inited = false;
 
+	private boolean asyncSupported = false;
+
 	public Registration(final Context context, final String name, final String className) {
 		this.context = context;
 		this.name = name;
@@ -60,6 +62,10 @@ public final class Registration implements ServletRegistration.Dynamic {
 
 	Servlet getServlet() {
 		return servlet;
+	}
+
+	boolean isAsyncSupported() {
+		return asyncSupported;
 	}
 
 	@Override
@@ -122,8 +128,8 @@ public final class Registration implements ServletRegistration.Dynamic {
 	}
 
 	@Override
-	public void setAsyncSupported(final boolean isAsyncSupported) {
-		throw new UnsupportedOperationException();
+	public void setAsyncSupported(final boolean asyncSupported) {
+		this.asyncSupported = asyncSupported;
 	}
 
 	@Override
