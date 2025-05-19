@@ -26,7 +26,7 @@ public final class Container implements AutoCloseable {
 	public void close() {
 	}
 
-	public void service(final Request request, final Response response) throws IOException, ServletException {
+	public void service(final Request request, final Response response) throws IOException, ServletException, InterruptedException {
 		final String uri = request.getRequestURI();
 		if (uri.charAt(0) != '/') {
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Bad Request");
@@ -56,9 +56,8 @@ public final class Container implements AutoCloseable {
 		logger.log(Level.INFO, "Dispatching: {0} to context {1}", new Object[] { uri, context.getServletContextName() });
 
 		final String contextRelativePath = uri.substring(contextUri.length());
-		final Dispatcher dispatcher = context.getRequestDispatcher(contextRelativePath);
 		request.setContext(context);
-		dispatcher.request(request, response);
+		request.getAsyncContext().service(request, response);
 	}
 
 	public void addContext(final Context context) {

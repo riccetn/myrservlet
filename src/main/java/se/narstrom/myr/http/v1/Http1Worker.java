@@ -52,7 +52,7 @@ public final class Http1Worker implements ServerClientWorker {
 		try {
 			container.service(request, response);
 			response.finish();
-		} catch (final ServletException ex) {
+		} catch (final InterruptedException | ServletException ex) {
 			throw new IOException(ex);
 		}
 	}

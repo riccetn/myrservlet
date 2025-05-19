@@ -66,6 +66,8 @@ public final class Request implements HttpServletRequest {
 
 	private final Map<String, Object> attributes = new HashMap<>();
 
+	private final Async asyncContext = new Async();
+
 	private Context context;
 
 	private Map<String, List<String>> parameters = null;
@@ -383,27 +385,29 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public AsyncContext startAsync() throws IllegalStateException {
-		throw new UnsupportedOperationException();
+		asyncContext.startAsync();
+		return asyncContext;
 	}
 
 	@Override
-	public AsyncContext startAsync(ServletRequest servletRequest, ServletResponse servletResponse) throws IllegalStateException {
-		throw new UnsupportedOperationException();
+	public AsyncContext startAsync(final ServletRequest servletRequest, final ServletResponse servletResponse) throws IllegalStateException {
+		asyncContext.startAsync(servletRequest, servletResponse);
+		return asyncContext;
 	}
 
 	@Override
 	public boolean isAsyncStarted() {
-		return false;
+		return asyncContext.isAsyncStarted();
 	}
 
 	@Override
 	public boolean isAsyncSupported() {
-		return false;
+		return true;
 	}
 
 	@Override
-	public AsyncContext getAsyncContext() {
-		throw new UnsupportedOperationException();
+	public Async getAsyncContext() {
+		return asyncContext;
 	}
 
 	@Override
