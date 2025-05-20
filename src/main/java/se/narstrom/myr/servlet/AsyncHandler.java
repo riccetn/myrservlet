@@ -50,7 +50,6 @@ public final class AsyncHandler implements AsyncContext {
 			this.path = uri.substring(contextPath.length());
 
 			while (state == State.DISPATCHING) {
-
 				final Dispatcher dispatcher = context.getRequestDispatcher(path);
 				originalRequest.setAsyncSupported(dispatcher.getRegistration().isAsyncSupported());
 
@@ -173,6 +172,7 @@ public final class AsyncHandler implements AsyncContext {
 			};
 			this.context = (Context) context;
 			this.path = path;
+			this.request = new AsyncRequest(request, (Context) context, path);
 			cond.signalAll();
 		} finally {
 			lock.unlock();
