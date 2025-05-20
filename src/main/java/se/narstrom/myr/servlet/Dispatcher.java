@@ -64,13 +64,13 @@ public final class Dispatcher implements RequestDispatcher {
 			} else {
 				response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Service Unavailable");
 			}
+		} catch (final IOException ex) {
+			throw ex;
 		} catch (final Exception ex) {
-			final LogRecord logRecord = new LogRecord(Level.SEVERE, "Exception thrown when handeling request in servlet ''{0}''");
+			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception thrown when handeling request in servlet ''{0}''");
 			logRecord.setParameters(new Object[] { registration.getName() });
 			logRecord.setThrown(ex);
 			logger.log(logRecord);
-
-			response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
 		} finally {
 			Thread.currentThread().setContextClassLoader(null);
 		}

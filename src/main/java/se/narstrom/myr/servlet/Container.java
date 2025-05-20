@@ -1,5 +1,6 @@
 package se.narstrom.myr.servlet;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -59,12 +60,10 @@ public final class Container implements AutoCloseable {
 		request.setContext(context);
 		try {
 			request.getAsyncContext().service(request, response);
+		} catch (final FileNotFoundException _) {
+			response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not Found");
 		} catch (final Exception ex) {
-			try {
-				response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
-			} catch (final Exception ex2) {
-				ex.addSuppressed(ex2);
-			}
+			response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
 			logger.log(Level.SEVERE, "Uncauth exception", ex);
 			throw ex;
 		}
