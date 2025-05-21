@@ -98,7 +98,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	void service(final HttpServletRequest request, final HttpServletResponse response) {
 		final String uri = request.getRequestURI();
-		if(!uri.startsWith(contextPath))
+		if (!uri.startsWith(contextPath))
 			throw new IllegalArgumentException("This request is not for this context: " + uri + " is not in " + contextPath);
 
 		String path = uri.substring(contextPath.length());
@@ -121,7 +121,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		}
 	}
 
-	void handleException(final HttpServletRequest request, final HttpServletResponse response, final Throwable ex) {
+	void handleException(HttpServletRequest request, final HttpServletResponse response, final Throwable ex) {
 		try {
 			Class<?> exceptionClass = ex.getClass();
 			String path = null;
@@ -132,20 +132,38 @@ public final class Context implements AutoCloseable, ServletContext {
 				exceptionClass = exceptionClass.getSuperclass();
 			}
 
+			request = new ErrorRequest(request);
+
 			if (path != null) {
 				getRequestDispatcher(path).request(request, response);
 				return;
 			}
 
 			switch (ex) {
-				case UnavailableException uex when !uex.isPermanent() -> response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Service Temporary Unavailable");
-				case UnavailableException _ -> response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not Found");
+				case UnavailableException uex when !uex.isPermanent() -> handleError(request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Service Temporary Unavailable");
+				case UnavailableException _ -> handleError(request, response, HttpServletResponse.SC_NOT_FOUND, "Not Found");
 				case ServletException sex -> handleException(request, response, sex.getRootCause());
-				case FileNotFoundException _ -> response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not Found");
+				case FileNotFoundException _ -> handleError(request, response, HttpServletResponse.SC_NOT_FOUND, "Not Found");
 				default -> response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
 			}
 		} catch (final ServletException | IOException ex2) {
 			logger.log(Level.SEVERE, "Error in error-page dispatch", ex2);
+		}
+	}
+
+	void handleError(final HttpServletRequest request, final HttpServletResponse response, final int status, final String message) {
+		try {
+			final String path = errorMappings.get(status);
+
+			if (path == null) {
+				response.sendError(status, message);
+				return;
+			}
+
+			response.setStatus(status);
+			getRequestDispatcher(path).request(request, response);
+		} catch (final ServletException | IOException ex) {
+			logger.log(Level.SEVERE, "Error in error-page dispatch", ex);
 		}
 	}
 
