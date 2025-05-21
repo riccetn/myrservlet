@@ -1,7 +1,6 @@
 package se.narstrom.myr.http.v1;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,7 +32,7 @@ public final class Http1Worker implements ServerClientWorker {
 		this.container = container;
 		this.socket = socket;
 		this.in = new BufferedInputStream(socket.getInputStream());
-		this.out = new BufferedOutputStream(socket.getOutputStream());
+		this.out = socket.getOutputStream();
 	}
 
 	@Override

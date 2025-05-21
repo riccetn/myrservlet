@@ -61,6 +61,8 @@ public final class Response implements HttpServletResponse {
 			writer.close();
 		else if (clientStream != null)
 			clientStream.close();
+		else
+			outputStream.flush();
 	}
 
 	@Override
