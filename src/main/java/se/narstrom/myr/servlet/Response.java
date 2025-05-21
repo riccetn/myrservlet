@@ -3,8 +3,11 @@ package se.narstrom.myr.servlet;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -16,19 +19,23 @@ import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import se.narstrom.myr.http.semantics.Token;
+import se.narstrom.myr.mime.MediaType;
+import se.narstrom.myr.util.Result;
 
 public final class Response implements HttpServletResponse {
 	private final Map<Token, List<String>> headerFields = new HashMap<>();
 
 	private final OutputStream outputStream;
 
-	int status = SC_OK;
+	private int status = SC_OK;
 
 	private PrintWriter writer;
 
 	private ServletOutputStream clientStream;
 
 	private boolean commited = false;
+
+	private Result<Charset, UnsupportedEncodingException> encoding = null;
 
 	public Response(final OutputStream outputStream) {
 		this.outputStream = outputStream;
@@ -88,12 +95,16 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public String getCharacterEncoding() {
-		return "ISO-8859-1";
+		return switch (this.encoding) {
+			case Result.Ok(Charset set) -> set.name();
+			case Result.Error(UnsupportedEncodingException ex) -> ex.getMessage();
+			case null -> null;
+		};
 	}
 
 	@Override
 	public String getContentType() {
-		throw new UnsupportedOperationException();
+		return getHeader("content-type");
 	}
 
 	@Override
@@ -133,14 +144,62 @@ public final class Response implements HttpServletResponse {
 		if (writer == null) {
 			if (clientStream != null)
 				throw new IllegalStateException("Stream of writer, not both");
-			writer = new PrintWriter(getOutputStream(), false, Charset.forName(getCharacterEncoding(), StandardCharsets.ISO_8859_1));
+
+			final Charset charset = (encoding != null) ? encoding.value() : StandardCharsets.UTF_8;
+
+			if (getContentType() == null)
+				setContentType("text/plain");
+
+			writer = new PrintWriter(getOutputStream(), false, charset);
 		}
 		return writer;
 	}
 
 	@Override
 	public void setCharacterEncoding(final String charset) {
-		throw new UnsupportedOperationException();
+		setCharacterEncodingNoContentTypeUpdate(charset);
+		updateContentTypeWithCharset(charset);
+	}
+
+	@Override
+	public void setCharacterEncoding(final Charset encoding) {
+		if (encoding == null) {
+			this.encoding = null;
+			updateContentTypeWithCharset(null);
+		} else {
+			this.encoding = new Result.Ok<>(encoding);
+			updateContentTypeWithCharset(encoding.name());
+		}
+	}
+
+	private void updateContentTypeWithCharset(final String charset) {
+		final String contentType = getHeader("content-type");
+		if (contentType == null)
+			return;
+
+		final MediaType mediaType = MediaType.parse(contentType);
+		final Map<String, String> parameters = new HashMap<>(mediaType.parameters());
+		if (charset == null) {
+			parameters.remove("charset");
+		} else {
+			parameters.put("charset", charset);
+		}
+
+		final MediaType newType = new MediaType(mediaType.type(), mediaType.subtype(), parameters);
+
+		setHeader("content-type", newType.render());
+	}
+
+	private void setCharacterEncodingNoContentTypeUpdate(final String charset) {
+		if (charset == null) {
+			this.encoding = null;
+		} else {
+			try {
+				this.encoding = new Result.Ok<>(Charset.forName(charset));
+			} catch (final IllegalCharsetNameException | UnsupportedCharsetException _) {
+				this.encoding = new Result.Error<>(new UnsupportedEncodingException(charset));
+			}
+		}
 	}
 
 	@Override
@@ -154,8 +213,23 @@ public final class Response implements HttpServletResponse {
 	}
 
 	@Override
-	public void setContentType(final String type) {
-		setHeader("content-type", type);
+	public void setContentType(String contentType) {
+		MediaType mediaType = MediaType.parse(contentType);
+		String charset = mediaType.parameters().get("charset");
+
+		if (charset != null) {
+			setCharacterEncodingNoContentTypeUpdate(charset);
+		} else {
+			charset = getCharacterEncoding();
+			if (charset != null) {
+				final Map<String, String> parameters = new HashMap<>(mediaType.parameters());
+				parameters.put("charset", charset);
+				mediaType = new MediaType(mediaType.type(), mediaType.subtype(), parameters);
+				contentType = mediaType.render();
+			}
+		}
+
+		setHeader("content-type", contentType);
 	}
 
 	@Override
