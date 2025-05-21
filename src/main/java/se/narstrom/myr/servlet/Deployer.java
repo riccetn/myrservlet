@@ -3,6 +3,7 @@ package se.narstrom.myr.servlet;
 import java.io.IOException;
 import java.nio.file.Path;
 
+import ee.jakarta.xml.ns.jakartaee.ErrorPageType;
 import ee.jakarta.xml.ns.jakartaee.ParamValueType;
 import ee.jakarta.xml.ns.jakartaee.ServletMappingType;
 import ee.jakarta.xml.ns.jakartaee.ServletType;
@@ -37,7 +38,7 @@ public final class Deployer {
 			}
 
 			final TrueFalseType asyncSupported = servlet.getAsyncSupported();
-			if(asyncSupported != null)
+			if (asyncSupported != null)
 				registration.setAsyncSupported(asyncSupported.isValue());
 		}
 
@@ -47,6 +48,13 @@ public final class Deployer {
 			for (final UrlPatternType pattern : mapping.getUrlPattern()) {
 				registration.addMapping(pattern.getValue());
 			}
+		}
+
+		for (final ErrorPageType errorPage : webApp.getErrorPage()) {
+			if (errorPage.getErrorCode() != null)
+				context.addErrorPage(errorPage.getErrorCode().getValue().intValue(), errorPage.getLocation().getValue());
+			if (errorPage.getExceptionType() != null)
+				context.addExceptionPage(errorPage.getExceptionType().getValue(), errorPage.getLocation().getValue());
 		}
 
 		final ServletRegistration.Dynamic registration = context.addServlet("Default Servlet", new DefaultServlet());

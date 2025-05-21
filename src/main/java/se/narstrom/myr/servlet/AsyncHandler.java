@@ -1,6 +1,5 @@
 package se.narstrom.myr.servlet;
 
-import java.io.IOException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -33,7 +32,7 @@ public final class AsyncHandler implements AsyncContext {
 
 	private String path = null;
 
-	void service(final Request request, final Response response) throws ServletException, IOException, InterruptedException {
+	void service(final Request request, final Response response) throws InterruptedException {
 		lock.lock();
 		try {
 			if (state != State.DISPATCHING)
@@ -50,14 +49,15 @@ public final class AsyncHandler implements AsyncContext {
 			this.path = uri.substring(contextPath.length());
 
 			while (state == State.DISPATCHING) {
+				this.state = State.DISPATCHED;
+
+				// TODO: Find some better way of dealing with this flag
 				final Dispatcher dispatcher = context.getRequestDispatcher(path);
 				originalRequest.setAsyncSupported(dispatcher.getRegistration().isAsyncSupported());
 
-				this.state = State.DISPATCHED;
-
 				lock.unlock();
 				try {
-					dispatcher.request(this.request, this.response);
+					context.service(this.request, this.response);
 				} finally {
 					lock.lock();
 				}

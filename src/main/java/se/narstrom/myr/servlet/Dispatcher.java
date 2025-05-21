@@ -60,17 +60,21 @@ public final class Dispatcher implements RequestDispatcher {
 
 			if (ex.isPermanent()) {
 				registration.destroy();
-				response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not Found");
-			} else {
-				response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Service Unavailable");
 			}
-		} catch (final IOException ex) {
+
+			throw ex;
+		} catch (final ServletException | IOException ex) {
+			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception thrown when handeling request in servlet ''{0}''");
+			logRecord.setParameters(new Object[] { registration.getName() });
+			logRecord.setThrown(ex);
+			logger.log(logRecord);
 			throw ex;
 		} catch (final Exception ex) {
 			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception thrown when handeling request in servlet ''{0}''");
 			logRecord.setParameters(new Object[] { registration.getName() });
 			logRecord.setThrown(ex);
 			logger.log(logRecord);
+			throw new ServletException(ex);
 		} finally {
 			Thread.currentThread().setContextClassLoader(null);
 		}

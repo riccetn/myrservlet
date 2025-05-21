@@ -35,6 +35,11 @@ public final class AsyncRequest extends HttpServletRequestWrapper {
 	}
 
 	@Override
+	public String getRequestURI() {
+		return getContextPath() + path.toString();
+	}
+
+	@Override
 	public DispatcherType getDispatcherType() {
 		return DispatcherType.ASYNC;
 	}

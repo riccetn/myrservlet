@@ -1,5 +1,6 @@
 package se.narstrom.myr.servlet;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import jakarta.servlet.Filter;
@@ -25,7 +27,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.SessionTrackingMode;
+import jakarta.servlet.UnavailableException;
 import jakarta.servlet.descriptor.JspConfigDescriptor;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 public final class Context implements AutoCloseable, ServletContext {
 	private final Logger logger;
@@ -47,6 +52,10 @@ public final class Context implements AutoCloseable, ServletContext {
 	private final Map<String, String> pathMappings = new HashMap<>();
 
 	private final Map<String, String> exactMappings = new HashMap<>();
+
+	private final Map<String, String> exceptionMappings = new HashMap<>();
+
+	private final Map<Integer, String> errorMappings = new HashMap<>();
 
 	private boolean inited = false;
 
@@ -84,6 +93,59 @@ public final class Context implements AutoCloseable, ServletContext {
 		logger.info("Destroying servlet context");
 		for (final Registration registration : registrations.values()) {
 			registration.destroy();
+		}
+	}
+
+	void service(final HttpServletRequest request, final HttpServletResponse response) {
+		final String uri = request.getRequestURI();
+		if(!uri.startsWith(contextPath))
+			throw new IllegalArgumentException("This request is not for this context: " + uri + " is not in " + contextPath);
+
+		String path = uri.substring(contextPath.length());
+		final String query = request.getQueryString();
+		if (query != null)
+			path += "?" + query;
+
+		final Dispatcher dispatcher = getRequestDispatcher(path);
+
+		try {
+			dispatcher.request(request, response);
+		} catch (final ServletException | IOException ex) {
+			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception from dispatch in context ''{0}''");
+			logRecord.setParameters(new Object[] { contextName });
+			logRecord.setThrown(ex);
+			logger.log(logRecord);
+
+			if (!response.isCommitted())
+				handleException(request, response, ex);
+		}
+	}
+
+	void handleException(final HttpServletRequest request, final HttpServletResponse response, final Throwable ex) {
+		try {
+			Class<?> exceptionClass = ex.getClass();
+			String path = null;
+			while (exceptionClass != Object.class) {
+				path = exceptionMappings.get(exceptionClass.getName());
+				if (path != null)
+					break;
+				exceptionClass = exceptionClass.getSuperclass();
+			}
+
+			if (path != null) {
+				getRequestDispatcher(path).request(request, response);
+				return;
+			}
+
+			switch (ex) {
+				case UnavailableException uex when !uex.isPermanent() -> response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Service Temporary Unavailable");
+				case UnavailableException _ -> response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not Found");
+				case ServletException sex -> handleException(request, response, sex.getRootCause());
+				case FileNotFoundException _ -> response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not Found");
+				default -> response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
+			}
+		} catch (final ServletException | IOException ex2) {
+			logger.log(Level.SEVERE, "Error in error-page dispatch", ex2);
 		}
 	}
 
@@ -126,6 +188,14 @@ public final class Context implements AutoCloseable, ServletContext {
 			return false;
 		exactMappings.put(pattern, name);
 		return true;
+	}
+
+	public void addErrorPage(final int errorCode, final String path) {
+		this.errorMappings.put(errorCode, path);
+	}
+
+	public void addExceptionPage(final String exceptionClassName, final String path) {
+		this.exceptionMappings.put(exceptionClassName, path);
 	}
 
 	@Override
