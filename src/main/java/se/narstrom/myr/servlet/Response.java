@@ -236,6 +236,8 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public void setBufferSize(final int size) {
+		if(clientStream != null)
+			throw new IllegalStateException();
 		throw new UnsupportedOperationException();
 	}
 
@@ -274,13 +276,16 @@ public final class Response implements HttpServletResponse {
 	}
 
 	@Override
-	public void setLocale(Locale loc) {
-		throw new UnsupportedOperationException();
+	public void setLocale(final Locale locale) {
+		setHeader("content-language", locale.toLanguageTag());
 	}
 
 	@Override
 	public Locale getLocale() {
-		throw new UnsupportedOperationException();
+		final String contentLanguage = getHeader("content-language");
+		if(contentLanguage == null)
+			return null;
+		return Locale.forLanguageTag(contentLanguage);
 	}
 
 	@Override
