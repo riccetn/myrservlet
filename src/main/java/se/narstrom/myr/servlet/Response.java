@@ -30,6 +30,8 @@ public final class Response implements HttpServletResponse {
 
 	private final CommitingBufferedOutputStream commitingOutputStream;
 
+	private boolean outputStreamReturned = false;
+
 	private OutputStream clientStream = null;
 
 	private PrintWriter writer = null;
@@ -82,7 +84,7 @@ public final class Response implements HttpServletResponse {
 	}
 
 	public void finish() throws IOException {
-		if(writer != null)
+		if (writer != null)
 			writer.flush();
 		commitingOutputStream.close();
 	}
@@ -133,16 +135,20 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public ServletOutputStream getOutputStream() throws IOException {
+		if (writer != null)
+			throw new IllegalStateException("Stream of writer, not both");
+		outputStreamReturned = true;
 		return commitingOutputStream;
 	}
 
 	@Override
 	public PrintWriter getWriter() throws IOException {
 		if (writer == null) {
-//			if (clientStream != null)
-//				throw new IllegalStateException("Stream of writer, not both");
+			if (outputStreamReturned)
+				throw new IllegalStateException("Stream of writer, not both");
 
-			final Charset charset = (encoding != null) ? encoding.value() : StandardCharsets.UTF_8;
+			if(encoding == null)
+				setCharacterEncoding(StandardCharsets.ISO_8859_1);
 
 			if (getContentType() == null)
 				setContentType("text/plain");
@@ -150,19 +156,25 @@ public final class Response implements HttpServletResponse {
 			// The PrintWriter constructors that take OutputStream creates an extra buffer,
 			// so we manually create the OutputStreamWriter
 			// to have better control of buffering
-			writer = new PrintWriter(new OutputStreamWriter(getOutputStream(), charset), false);
+			writer = new PrintWriter(new OutputStreamWriter(getOutputStream(), encoding.value()), false);
 		}
 		return writer;
 	}
 
 	@Override
 	public void setCharacterEncoding(final String charset) {
+		if(writer != null)
+			return;
+
 		setCharacterEncodingNoContentTypeUpdate(charset);
 		updateContentTypeWithCharset(charset);
 	}
 
 	@Override
 	public void setCharacterEncoding(final Charset encoding) {
+		if(writer != null)
+			return;
+
 		if (encoding == null) {
 			this.encoding = null;
 			updateContentTypeWithCharset(null);
@@ -217,7 +229,7 @@ public final class Response implements HttpServletResponse {
 		MediaType mediaType = MediaType.parse(contentType);
 		String charset = mediaType.parameters().get("charset");
 
-		if (charset != null) {
+		if (charset != null && writer == null) {
 			setCharacterEncodingNoContentTypeUpdate(charset);
 		} else {
 			charset = getCharacterEncoding();
@@ -246,7 +258,7 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public void flushBuffer() throws IOException {
-		if(writer != null)
+		if (writer != null)
 			writer.flush();
 		commitingOutputStream.flush();
 	}
@@ -268,6 +280,7 @@ public final class Response implements HttpServletResponse {
 		if (commited)
 			throw new IllegalStateException("Response has already been committed");
 		commitingOutputStream.resetBuffer();
+		outputStreamReturned = false;
 		writer = null;
 		clientStream = null;
 		status = SC_OK;
