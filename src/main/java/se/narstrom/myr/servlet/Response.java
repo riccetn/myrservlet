@@ -30,6 +30,8 @@ public final class Response implements HttpServletResponse {
 
 	private final CommitingBufferedOutputStream commitingOutputStream;
 
+	private Context context;
+
 	private boolean outputStreamReturned = false;
 
 	private OutputStream clientStream = null;
@@ -81,6 +83,10 @@ public final class Response implements HttpServletResponse {
 		}
 
 		return clientStream;
+	}
+
+	void setContext(final Context context) {
+		this.context = context;
 	}
 
 	public void finish() throws IOException {
@@ -147,7 +153,7 @@ public final class Response implements HttpServletResponse {
 			if (outputStreamReturned)
 				throw new IllegalStateException("Stream of writer, not both");
 
-			if(encoding == null)
+			if (encoding == null)
 				setCharacterEncoding(StandardCharsets.ISO_8859_1);
 
 			if (getContentType() == null)
@@ -163,7 +169,7 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public void setCharacterEncoding(final String charset) {
-		if(writer != null)
+		if (writer != null)
 			return;
 
 		setCharacterEncodingNoContentTypeUpdate(charset);
@@ -172,7 +178,7 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public void setCharacterEncoding(final Charset encoding) {
-		if(writer != null)
+		if (writer != null)
 			return;
 
 		if (encoding == null) {
@@ -290,6 +296,11 @@ public final class Response implements HttpServletResponse {
 	@Override
 	public void setLocale(final Locale locale) {
 		setHeader("content-language", locale.toLanguageTag());
+		if (encoding == null) {
+			final Charset charset = context.getLocaleEncoding(locale);
+			if (charset != null)
+				setCharacterEncoding(charset);
+		}
 	}
 
 	@Override

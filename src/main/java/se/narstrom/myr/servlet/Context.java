@@ -5,12 +5,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -56,6 +58,8 @@ public final class Context implements AutoCloseable, ServletContext {
 	private final Map<String, String> exceptionMappings = new HashMap<>();
 
 	private final Map<Integer, String> errorMappings = new HashMap<>();
+
+	private final Map<Locale, Charset> localeEncodingMappings = new HashMap<>();
 
 	private boolean inited = false;
 
@@ -208,12 +212,22 @@ public final class Context implements AutoCloseable, ServletContext {
 		return true;
 	}
 
-	public void addErrorPage(final int errorCode, final String path) {
+	void addErrorPage(final int errorCode, final String path) {
 		this.errorMappings.put(errorCode, path);
 	}
 
-	public void addExceptionPage(final String exceptionClassName, final String path) {
+	void addExceptionPage(final String exceptionClassName, final String path) {
 		this.exceptionMappings.put(exceptionClassName, path);
+	}
+
+	void addLocaleEncodingMapping(final Locale locale, final Charset encoding) {
+		Objects.requireNonNull(locale);
+		Objects.requireNonNull(encoding);
+		localeEncodingMappings.put(locale, encoding);
+	}
+
+	Charset getLocaleEncoding(final Locale locale) {
+		return localeEncodingMappings.get(locale);
 	}
 
 	@Override

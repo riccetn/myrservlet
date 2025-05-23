@@ -57,6 +57,7 @@ public final class Container implements AutoCloseable {
 
 		final String contextRelativePath = uri.substring(contextUri.length());
 		request.setContext(context);
+		response.setContext(context);
 		request.getAsyncContext().service(request, response);
 	}
 
