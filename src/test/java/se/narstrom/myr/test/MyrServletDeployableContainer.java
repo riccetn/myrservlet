@@ -5,7 +5,6 @@ import java.net.ServerSocket;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.concurrent.Executors;
@@ -30,7 +29,7 @@ import se.narstrom.myr.servlet.Deployer;
 
 public class MyrServletDeployableContainer implements DeployableContainer<MyrServletContainerConfiguration> {
 
-	private final Path base = Paths.get("C:\\Development\\webroot");
+	private Path base;
 
 	private Server server;
 
@@ -52,7 +51,7 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 	public void start() throws LifecycleException {
 		System.out.println("start()");
 		try {
-			Files.createDirectories(base);
+			base = Files.createTempDirectory("webroot");
 
 			container = new Container();
 			server = new Server(new ServerSocket(8080), Executors.newVirtualThreadPerTaskExecutor(), new Http1WorkerFactory(container));
@@ -80,12 +79,22 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 
 		try {
 			thread.join();
-		} catch (final InterruptedException ex2) {
+		} catch (final InterruptedException _) {
 			Thread.currentThread().interrupt();
+		}
+
+		try {
+			Files.delete(base);
+		} catch (final IOException ex2) {
+			if (ex != null)
+				ex.addSuppressed(ex2);
+			else
+				ex = ex2;
 		}
 
 		server = null;
 		thread = null;
+		base = null;
 
 		if (ex != null)
 			throw new LifecycleException("Exception stoping container", ex);
