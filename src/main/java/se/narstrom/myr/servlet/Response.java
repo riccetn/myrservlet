@@ -2,6 +2,7 @@ package se.narstrom.myr.servlet;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
@@ -25,44 +26,65 @@ import se.narstrom.myr.util.Result;
 public final class Response implements HttpServletResponse {
 	private final Map<Token, List<String>> headerFields = new HashMap<>();
 
-	private final OutputStream outputStream;
+	private final OutputStream httpOutputStream;
 
-	private int status = SC_OK;
+	private final CommitingBufferedOutputStream commitingOutputStream;
 
-	private PrintWriter writer;
+	private OutputStream clientStream = null;
 
-	private ServletOutputStream clientStream;
+	private PrintWriter writer = null;
 
 	private boolean commited = false;
+
+	private int status = SC_OK;
 
 	private Result<Charset, UnsupportedEncodingException> encoding = null;
 
 	public Response(final OutputStream outputStream) {
-		this.outputStream = outputStream;
+		this.httpOutputStream = outputStream;
+		this.commitingOutputStream = new CommitingBufferedOutputStream(this);
 	}
 
-	public void commit() throws IOException {
+	public OutputStream commit() throws IOException {
 		if (commited)
-			return;
+			throw new IllegalStateException("Already commited");
+
 		commited = true;
-		outputStream.write(("HTTP/1.1 " + status + "\r\n").getBytes());
+		httpOutputStream.write(("HTTP/1.1 " + status + "\r\n").getBytes());
 		for (final Map.Entry<Token, List<String>> entry : headerFields.entrySet()) {
 			final Token name = entry.getKey();
 			final List<String> values = entry.getValue();
 			for (final String value : values)
-				outputStream.write((name.value() + ": " + value + "\r\n").getBytes());
+				httpOutputStream.write((name.value() + ": " + value + "\r\n").getBytes());
 		}
-		outputStream.write("\r\n".getBytes());
+		httpOutputStream.write("\r\n".getBytes());
+
+		final String contentLength = getHeader("content-length");
+		if (contentLength != null) {
+			long length = -1L;
+			try {
+				length = Long.parseLong(contentLength);
+			} catch (final NumberFormatException ex) {
+			}
+			if (length >= 0) {
+				setHeader("transfer-encoding", null);
+				clientStream = new LengthOutputStream(httpOutputStream, length);
+			}
+		}
+
+		if (clientStream == null) {
+			setHeader("transfer-encoding", "chunked");
+			setHeader("content-length", null);
+			clientStream = new ChunkedOutputStream(httpOutputStream);
+		}
+
+		return clientStream;
 	}
 
 	public void finish() throws IOException {
-		commit();
-		if (writer != null)
-			writer.close();
-		else if (clientStream != null)
-			clientStream.close();
-		else
-			outputStream.flush();
+		if(writer != null)
+			writer.flush();
+		commitingOutputStream.close();
 	}
 
 	@Override
@@ -111,48 +133,24 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public ServletOutputStream getOutputStream() throws IOException {
-		if (clientStream == null) {
-			final String contentLength = getHeader("content-length");
-
-			if (contentLength != null) {
-				long length = -1L;
-				try {
-					length = Long.parseLong(contentLength);
-				} catch (final NumberFormatException ex) {
-				}
-				if (length >= 0) {
-					setHeader("transfer-encoding", null);
-					commit();
-					clientStream = new LengthOutputStream(outputStream, length);
-				}
-			}
-
-			if (clientStream == null) {
-				setHeader("transfer-encoding", "chunked");
-				setHeader("content-length", null);
-				commit();
-				clientStream = new ChunkedOutputStream(outputStream);
-			}
-		}
-
-		if (writer != null)
-			throw new IllegalStateException("Stream or writer, not both");
-
-		return clientStream;
+		return commitingOutputStream;
 	}
 
 	@Override
 	public PrintWriter getWriter() throws IOException {
 		if (writer == null) {
-			if (clientStream != null)
-				throw new IllegalStateException("Stream of writer, not both");
+//			if (clientStream != null)
+//				throw new IllegalStateException("Stream of writer, not both");
 
 			final Charset charset = (encoding != null) ? encoding.value() : StandardCharsets.UTF_8;
 
 			if (getContentType() == null)
 				setContentType("text/plain");
 
-			writer = new PrintWriter(getOutputStream(), false, charset);
+			// The PrintWriter constructors that take OutputStream creates an extra buffer,
+			// so we manually create the OutputStreamWriter
+			// to have better control of buffering
+			writer = new PrintWriter(new OutputStreamWriter(getOutputStream(), charset), false);
 		}
 		return writer;
 	}
@@ -236,7 +234,7 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public void setBufferSize(final int size) {
-		if(clientStream != null)
+		if (clientStream != null)
 			throw new IllegalStateException();
 		throw new UnsupportedOperationException();
 	}
@@ -248,18 +246,16 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public void flushBuffer() throws IOException {
-		commit();
-		if (writer != null)
+		if(writer != null)
 			writer.flush();
-		else if (clientStream != null)
-			clientStream.flush();
-		else
-			outputStream.flush();
+		commitingOutputStream.flush();
 	}
 
 	@Override
 	public void resetBuffer() {
-		throw new UnsupportedOperationException();
+		if (commited)
+			throw new IllegalStateException("Response has already been committed");
+		commitingOutputStream.resetBuffer();
 	}
 
 	@Override
@@ -271,6 +267,9 @@ public final class Response implements HttpServletResponse {
 	public void reset() {
 		if (commited)
 			throw new IllegalStateException("Response has already been committed");
+		commitingOutputStream.resetBuffer();
+		writer = null;
+		clientStream = null;
 		status = SC_OK;
 		headerFields.clear();
 	}
@@ -283,7 +282,7 @@ public final class Response implements HttpServletResponse {
 	@Override
 	public Locale getLocale() {
 		final String contentLanguage = getHeader("content-language");
-		if(contentLanguage == null)
+		if (contentLanguage == null)
 			return null;
 		return Locale.forLanguageTag(contentLanguage);
 	}

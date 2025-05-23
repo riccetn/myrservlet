@@ -42,6 +42,8 @@ public final class ChunkedOutputStream extends ServletOutputStream {
 	public void write(final byte[] b, final int off, final int len) throws IOException {
 		if(closed)
 			throw new IOException("closed stream");
+		if(len == 0)
+			return;
 		final String hexlen = Integer.toHexString(len);
 		out.write((hexlen + "\r\n").getBytes());
 		out.write(b, off, len);
