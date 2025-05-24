@@ -9,6 +9,7 @@ import java.util.Locale;
 import ee.jakarta.xml.ns.jakartaee.ErrorPageType;
 import ee.jakarta.xml.ns.jakartaee.LocaleEncodingMappingListType;
 import ee.jakarta.xml.ns.jakartaee.LocaleEncodingMappingType;
+import ee.jakarta.xml.ns.jakartaee.MimeMappingType;
 import ee.jakarta.xml.ns.jakartaee.ParamValueType;
 import ee.jakarta.xml.ns.jakartaee.ServletMappingType;
 import ee.jakarta.xml.ns.jakartaee.ServletType;
@@ -69,6 +70,10 @@ public final class Deployer {
 			for (final LocaleEncodingMappingType mapping : webApp.getLocaleEncodingMappingList().getFirst().getLocaleEncodingMapping()) {
 				context.addLocaleEncodingMapping(Locale.forLanguageTag(mapping.getLocale()), Charset.forName(mapping.getEncoding()));
 			}
+		}
+
+		for (final MimeMappingType mapping : webApp.getMimeMapping()) {
+			context.addMimeTypeMapping(mapping.getExtension().getValue(), mapping.getMimeType().getValue());
 		}
 
 		final ServletRegistration.Dynamic registration = context.addServlet("Default Servlet", new DefaultServlet());

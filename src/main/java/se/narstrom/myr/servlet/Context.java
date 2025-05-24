@@ -8,6 +8,7 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.EventListener;
@@ -60,6 +61,8 @@ public final class Context implements AutoCloseable, ServletContext {
 	private final Map<Integer, String> errorMappings = new HashMap<>();
 
 	private final Map<Locale, Charset> localeEncodingMappings = new HashMap<>();
+
+	private final Map<String, String> mimeTypeMappings = new HashMap<>();
 
 	private boolean inited = false;
 
@@ -230,6 +233,10 @@ public final class Context implements AutoCloseable, ServletContext {
 		return localeEncodingMappings.get(locale);
 	}
 
+	void addMimeTypeMapping(final String extension, final String mediaType) {
+		mimeTypeMappings.put(extension, mediaType);
+	}
+
 	@Override
 	public String getContextPath() {
 		return contextPath;
@@ -263,7 +270,15 @@ public final class Context implements AutoCloseable, ServletContext {
 	@Override
 	public String getMimeType(final String file) {
 		try {
-			final Path path = base.resolve(file);
+			final Path path = Paths.get(getRealPath(file));
+			final String filename = path.getFileName().toString();
+			final int dot = filename.lastIndexOf('.');
+			if (dot != -1) {
+				final String fileext = filename.substring(dot + 1);
+				final String mediaType = mimeTypeMappings.get(fileext);
+				if (mediaType != null)
+					return mediaType;
+			}
 			return Files.probeContentType(path);
 		} catch (IOException _) {
 			return "application/octet-stream";
@@ -277,13 +292,20 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public URL getResource(final String path) throws MalformedURLException {
-		return base.resolve(path).toUri().toURL();
+		if (path.charAt(0) != '/')
+			throw new MalformedURLException();
+		final Path realPath = Paths.get(getRealPath(path));
+		if (!Files.exists(realPath))
+			return null;
+		return realPath.toUri().toURL();
 	}
 
 	@Override
 	public InputStream getResourceAsStream(final String path) {
+		if (path.charAt(0) != '/')
+			return null;
 		try {
-			return Files.newInputStream(base.resolve(path));
+			return Files.newInputStream(base.resolve(path.substring(1)));
 		} catch (IOException _) {
 			return null;
 		}
@@ -351,7 +373,9 @@ public final class Context implements AutoCloseable, ServletContext {
 	}
 
 	@Override
-	public String getRealPath(final String path) {
+	public String getRealPath(String path) {
+		if (path.charAt(0) == '/')
+			path = path.substring(1);
 		return base.resolve(path).toAbsolutePath().toString();
 	}
 

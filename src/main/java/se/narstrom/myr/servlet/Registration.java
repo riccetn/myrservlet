@@ -49,7 +49,7 @@ public final class Registration implements ServletRegistration.Dynamic {
 			servlet = context.createServlet(clazz);
 		}
 
-		servlet.init(new Config(context, initParameters));
+		servlet.init(new Config(context, name, initParameters));
 		inited = true;
 	}
 
