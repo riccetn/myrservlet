@@ -252,9 +252,9 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public void setBufferSize(final int size) {
-		if (clientStream != null)
+		if(commited)
 			throw new IllegalStateException();
-		throw new UnsupportedOperationException();
+		commitingOutputStream.setBufferSize(size);
 	}
 
 	@Override

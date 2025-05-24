@@ -8,9 +8,9 @@ import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 
 public final class CommitingBufferedOutputStream extends ServletOutputStream {
-	private final ByteBuffer buffer;
-
 	private final Response response;
+
+	private ByteBuffer buffer;
 
 	private OutputStream out;
 
@@ -23,12 +23,19 @@ public final class CommitingBufferedOutputStream extends ServletOutputStream {
 		buffer.clear();
 	}
 
+	void setBufferSize(int size) {
+		if(response.isCommitted() || buffer.position() > 0)
+			throw new IllegalStateException();
+		buffer = ByteBuffer.allocate(size);
+	}
+
 	@Override
 	public void flush() throws IOException {
 		if(out == null)
 			out = response.commit();
 		buffer.flip();
-		out.write(buffer.array(), buffer.arrayOffset() + buffer.position(), buffer.remaining());
+		if(buffer.remaining() > 0)
+			out.write(buffer.array(), buffer.arrayOffset() + buffer.position(), buffer.remaining());
 		buffer.clear();
 	}
 
