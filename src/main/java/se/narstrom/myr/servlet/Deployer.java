@@ -3,6 +3,7 @@ package se.narstrom.myr.servlet;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Locale;
 
 import ee.jakarta.xml.ns.jakartaee.ErrorPageType;
@@ -61,8 +62,13 @@ public final class Deployer {
 				context.addExceptionPage(errorPage.getExceptionType().getValue(), errorPage.getLocation().getValue());
 		}
 
-		for (final LocaleEncodingMappingType mapping : webApp.getLocaleEncodingMappingList().getFirst().getLocaleEncodingMapping()) {
-			context.addLocaleEncodingMapping(Locale.forLanguageTag(mapping.getLocale()), Charset.forName(mapping.getEncoding()));
+		final List<LocaleEncodingMappingListType> localeMappingLists = webApp.getLocaleEncodingMappingList();
+		if (localeMappingLists.size() > 1)
+			throw new IllegalArgumentException("Invalid deployment descriptor: contains more then one locale-encoding-mappig-list");
+		if (localeMappingLists.size() == 1) {
+			for (final LocaleEncodingMappingType mapping : webApp.getLocaleEncodingMappingList().getFirst().getLocaleEncodingMapping()) {
+				context.addLocaleEncodingMapping(Locale.forLanguageTag(mapping.getLocale()), Charset.forName(mapping.getEncoding()));
+			}
 		}
 
 		final ServletRegistration.Dynamic registration = context.addServlet("Default Servlet", new DefaultServlet());

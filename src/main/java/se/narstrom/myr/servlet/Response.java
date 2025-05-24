@@ -156,9 +156,6 @@ public final class Response implements HttpServletResponse {
 			if (encoding == null)
 				setCharacterEncoding(StandardCharsets.ISO_8859_1);
 
-			if (getContentType() == null)
-				setContentType("text/plain");
-
 			// The PrintWriter constructors that take OutputStream creates an extra buffer,
 			// so we manually create the OutputStreamWriter
 			// to have better control of buffering
@@ -307,7 +304,7 @@ public final class Response implements HttpServletResponse {
 	public Locale getLocale() {
 		final String contentLanguage = getHeader("content-language");
 		if (contentLanguage == null)
-			return null;
+			return Locale.getDefault();
 		return Locale.forLanguageTag(contentLanguage);
 	}
 
