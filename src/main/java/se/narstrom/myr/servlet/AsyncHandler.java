@@ -18,7 +18,7 @@ public final class AsyncHandler implements AsyncContext {
 
 	private final Condition cond = lock.newCondition();
 
-	private Request originalRequest = null;
+	private HttpServletRequest originalRequest = null;
 
 	private Response originalResponse = null;
 
@@ -32,14 +32,14 @@ public final class AsyncHandler implements AsyncContext {
 
 	private String path = null;
 
-	void service(final Request request, final Response response) throws InterruptedException {
+	void service(final HttpServletRequest request, final Response response) throws InterruptedException {
 		lock.lock();
 		try {
 			if (state != State.DISPATCHING)
 				throw new IllegalStateException();
 			this.request = this.originalRequest = request;
 			this.response = this.originalResponse = response;
-			this.context = request.getServletContext();
+			this.context = (Context) request.getServletContext();
 
 			final String uri = request.getRequestURI();
 			final String contextPath = context.getContextPath();
@@ -52,8 +52,8 @@ public final class AsyncHandler implements AsyncContext {
 				this.state = State.DISPATCHED;
 
 				// TODO: Find some better way of dealing with this flag
-				final Dispatcher dispatcher = context.getRequestDispatcher(path);
-				originalRequest.setAsyncSupported(dispatcher.getRegistration().isAsyncSupported());
+				// final Dispatcher dispatcher = context.getRequestDispatcher(path);
+				// originalRequest.setAsyncSupported(dispatcher.getRegistration().isAsyncSupported());
 
 				lock.unlock();
 				try {

@@ -1,6 +1,10 @@
 package se.narstrom.myr;
 
 public final class AugmentedBackusNaurFormUtils {
+
+	private AugmentedBackusNaurFormUtils() {
+	}
+
 	public static boolean isDigit(final char ch) {
 		return ch >= '0' && ch <= '9';
 	}

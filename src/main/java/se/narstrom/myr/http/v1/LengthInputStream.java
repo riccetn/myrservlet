@@ -1,4 +1,4 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.http.v1;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,7 +11,7 @@ public final class LengthInputStream extends ServletInputStream {
 	private long remaining;
 	private long mark = -1;
 
-	protected LengthInputStream(final InputStream in, final long length) {
+	public LengthInputStream(final InputStream in, final long length) {
 		this.in = in;
 		this.remaining = length;
 	}

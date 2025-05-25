@@ -2,10 +2,8 @@ package se.narstrom.myr.servlet;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.net.Socket;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
@@ -21,6 +19,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Locale.LanguageRange;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -39,39 +38,24 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
+import se.narstrom.myr.http.HttpRequest;
 import se.narstrom.myr.http.cookie.CookieParser;
-import se.narstrom.myr.http.semantics.Method;
-import se.narstrom.myr.http.semantics.Token;
-import se.narstrom.myr.http.v1.AbsolutePath;
 import se.narstrom.myr.mime.MediaType;
-import se.narstrom.myr.uri.Query;
 import se.narstrom.myr.uri.UrlEncoding;
 import se.narstrom.myr.util.Result;
 
-public final class Request implements HttpServletRequest {
+public final class MyrRequest implements HttpServletRequest {
 	private final Logger logger = Logger.getLogger(getClass().getName());
 
-	private final Method method;
-
-	private final AbsolutePath path;
-
-	private final Query query;
-
-	private final Map<Token, List<String>> fields;
-
-	private final Socket socket;
-
-	private final InputStream inputStream;
+	private final HttpRequest httpReqeust;
 
 	private final Map<String, Object> attributes = new HashMap<>();
 
-	private final AsyncHandler asyncContext = new AsyncHandler();
+	private boolean inputStreamReturned = false;
 
 	private Context context;
 
 	private Map<String, List<String>> parameters = null;
-
-	private ServletInputStream clientInputStream = null;
 
 	private BufferedReader reader = null;
 
@@ -79,23 +63,12 @@ public final class Request implements HttpServletRequest {
 
 	private List<Locale> locales = null;
 
-	private boolean asyncSupported;
-
-	public Request(final Method method, final AbsolutePath path, final Query query, final Map<Token, List<String>> fields, final Socket socket, final InputStream inputStream) {
-		this.method = method;
-		this.path = path;
-		this.query = query;
-		this.fields = fields;
-		this.socket = socket;
-		this.inputStream = inputStream;
+	public MyrRequest(final HttpRequest httpRequest) {
+		this.httpReqeust = httpRequest;
 	}
 
 	void setContext(final Context context) {
 		this.context = context;
-	}
-
-	void setAsyncSupported(final boolean asyncSupported) {
-		this.asyncSupported = asyncSupported;
 	}
 
 	@Override
@@ -181,19 +154,10 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public ServletInputStream getInputStream() throws IOException {
-		if (clientInputStream == null) {
-			long length = getContentLengthLong();
-			if (length != -1L) {
-				clientInputStream = new LengthInputStream(inputStream, length);
-			}
-			// TODO: other body formats
-			if (clientInputStream == null) {
-				clientInputStream = new LengthInputStream(null, 0L);
-			}
-		}
 		if (reader != null)
 			throw new IllegalStateException("stream or reader, not both");
-		return clientInputStream;
+		inputStreamReturned = true;
+		return httpReqeust.getInputStream();
 	}
 
 	@Override
@@ -232,8 +196,9 @@ public final class Request implements HttpServletRequest {
 
 		parameters = new HashMap<>();
 
-		if (!query.value().isEmpty()) {
-			final Map<String, List<String>> queryParameters = UrlEncoding.parse(query.value());
+		final String query = getQueryString();
+		if (query != null) {
+			final Map<String, List<String>> queryParameters = UrlEncoding.parse(query);
 			for (final Map.Entry<String, List<String>> ent : queryParameters.entrySet()) {
 				parameters.computeIfAbsent(ent.getKey(), _ -> new ArrayList<>()).addAll(ent.getValue());
 			}
@@ -266,28 +231,28 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public String getProtocol() {
-		return "HTTP/1.1";
+		return httpReqeust.getProtocol();
 	}
 
 	@Override
 	public String getScheme() {
-		return "http";
+		return httpReqeust.getScheme();
 	}
 
 	@Override
 	public String getServerName() {
-		return "localhost";
+		return httpReqeust.getServerName();
 	}
 
 	@Override
 	public int getServerPort() {
-		return socket.getLocalPort();
+		return httpReqeust.getLocalPort();
 	}
 
 	@Override
 	public BufferedReader getReader() throws IOException {
 		if (reader == null) {
-			if (clientInputStream != null)
+			if (inputStreamReturned)
 				throw new IllegalStateException("stream or reader, not both");
 
 			maybeInitCharacterEncoding();
@@ -303,12 +268,12 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public String getRemoteAddr() {
-		return socket.getInetAddress().getHostAddress();
+		return httpReqeust.getRemoteAddr();
 	}
 
 	@Override
 	public String getRemoteHost() {
-		return socket.getInetAddress().getHostName();
+		return httpReqeust.getRemoteHost();
 	}
 
 	@Override
@@ -353,7 +318,7 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public boolean isSecure() {
-		return false;
+		return httpReqeust.isSecure();
 	}
 
 	@Override
@@ -365,22 +330,22 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public int getRemotePort() {
-		return socket.getPort();
+		return httpReqeust.getRemotePort();
 	}
 
 	@Override
 	public String getLocalName() {
-		return socket.getLocalAddress().getHostName();
+		return httpReqeust.getLocalName();
 	}
 
 	@Override
 	public String getLocalAddr() {
-		return socket.getLocalAddress().getHostAddress();
+		return httpReqeust.getLocalAddr();
 	}
 
 	@Override
 	public int getLocalPort() {
-		return socket.getLocalPort();
+		return httpReqeust.getLocalPort();
 	}
 
 	@Override
@@ -390,33 +355,27 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public AsyncContext startAsync() throws IllegalStateException {
-		if(!asyncSupported)
-			throw new IllegalStateException("Async not supported in this context");
-		asyncContext.startAsync();
-		return asyncContext;
+		throw new IllegalStateException("Async not supported in this context");
 	}
 
 	@Override
 	public AsyncContext startAsync(final ServletRequest servletRequest, final ServletResponse servletResponse) throws IllegalStateException {
-		if(!asyncSupported)
-			throw new IllegalStateException("Async not supported in this context");
-		asyncContext.startAsync(servletRequest, servletResponse);
-		return asyncContext;
+		throw new IllegalStateException("Async not supported in this context");
 	}
 
 	@Override
 	public boolean isAsyncStarted() {
-		return asyncContext.isAsyncStarted();
+		throw new IllegalStateException("Async not supported in this context");
 	}
 
 	@Override
 	public boolean isAsyncSupported() {
-		return asyncSupported;
+		throw new IllegalStateException("Async not supported in this context");
 	}
 
 	@Override
 	public AsyncHandler getAsyncContext() {
-		return asyncContext;
+		throw new IllegalStateException("Async not supported in this context");
 	}
 
 	@Override
@@ -447,9 +406,10 @@ public final class Request implements HttpServletRequest {
 	@Override
 	public Cookie[] getCookies() {
 		final List<Cookie> cookies = new ArrayList<>();
-		final List<String> cookieFields = fields.get(new Token("cookie"));
+		final Enumeration<String> cookieFields = getHeaders("cookie");
 		if (cookieFields != null) {
-			for (final String cookieString : cookieFields) {
+			while (cookieFields.hasMoreElements()) {
+				final String cookieString = cookieFields.nextElement();
 				cookies.addAll(CookieParser.parse(cookieString));
 			}
 		}
@@ -463,20 +423,24 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public String getHeader(final String name) {
-		final List<String> values = fields.get(new Token(name));
-		if (values == null)
-			return null;
-		return values.getFirst();
+		final Enumeration<String> values = getHeaders(name);
+		if (values != null && values.hasMoreElements())
+			return values.nextElement();
+		return null;
 	}
 
 	@Override
-	public Enumeration<String> getHeaders(String name) {
-		return Collections.enumeration(fields.get(new Token(name)));
+	public Enumeration<String> getHeaders(final String name) {
+		final List<String> values = httpReqeust.getHeaderfields().get(name);
+		if (values != null)
+			return Collections.enumeration(values);
+		return Collections.emptyEnumeration();
 	}
 
 	@Override
 	public Enumeration<String> getHeaderNames() {
-		return Collections.enumeration(fields.keySet().stream().map(Token::value).toList());
+		final Set<String> names = httpReqeust.getHeaderfields().keySet();
+		return Collections.enumeration(names);
 	}
 
 	@Override
@@ -486,7 +450,7 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public String getMethod() {
-		return method.token().value();
+		return httpReqeust.getMethod();
 	}
 
 	@Override
@@ -506,10 +470,7 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public String getQueryString() {
-		final String queryStr = query.toString();
-		if (queryStr.isEmpty())
-			return null;
-		return queryStr;
+		return httpReqeust.getQueryString();
 	}
 
 	@Override
@@ -534,7 +495,7 @@ public final class Request implements HttpServletRequest {
 
 	@Override
 	public String getRequestURI() {
-		return path.toString();
+		return httpReqeust.getRequestURI();
 	}
 
 	@Override
@@ -546,7 +507,7 @@ public final class Request implements HttpServletRequest {
 		sb.append(getServerName());
 		sb.append(":");
 		sb.append(Integer.toString(getServerPort()));
-		sb.append(path.toString());
+		sb.append(getRequestURI());
 		return sb;
 	}
 

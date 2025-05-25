@@ -9,6 +9,7 @@ import java.util.logging.Logger;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletResponse;
+import se.narstrom.myr.http.HttpRequest;
 
 public final class Container implements AutoCloseable {
 	private final Logger logger = Logger.getLogger(getClass().getName());
@@ -26,7 +27,8 @@ public final class Container implements AutoCloseable {
 	public void close() {
 	}
 
-	public void service(final Request request, final Response response) throws IOException, ServletException, InterruptedException {
+	public void service(final HttpRequest httpRequest, final Response response) throws IOException {
+		final MyrRequest request = new MyrRequest(httpRequest);
 		final String uri = request.getRequestURI();
 		if (uri.charAt(0) != '/') {
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Bad Request");
@@ -55,10 +57,9 @@ public final class Container implements AutoCloseable {
 
 		logger.log(Level.INFO, "Dispatching: {0} to context {1}", new Object[] { uri, context.getServletContextName() });
 
-		final String contextRelativePath = uri.substring(contextUri.length());
 		request.setContext(context);
 		response.setContext(context);
-		request.getAsyncContext().service(request, response);
+		context.service(request, response);
 	}
 
 	public void addContext(final Context context) {

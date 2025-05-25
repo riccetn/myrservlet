@@ -9,6 +9,11 @@ public record Token(String value) {
 		this.value = verifyToken(value);
 	}
 
+	@Override
+	public final String toString() {
+		return value;
+	}
+
 	public static String verifyToken(final String str) {
 		if (!isToken(str))
 			throw new IllegalArgumentException("Invalid token: " + str);

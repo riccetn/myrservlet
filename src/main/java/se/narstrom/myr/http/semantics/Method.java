@@ -5,4 +5,9 @@ public record Method(Token token) {
 	public static Method parse(final String str) {
 		return new Method(new Token(str));
 	}
+
+	@Override
+	public final String toString() {
+		return token.toString();
+	}
 }
