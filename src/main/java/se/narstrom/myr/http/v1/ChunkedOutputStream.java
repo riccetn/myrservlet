@@ -1,4 +1,4 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.http.v1;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -6,13 +6,12 @@ import java.io.OutputStream;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 
-public final class LengthOutputStream extends ServletOutputStream {
+public final class ChunkedOutputStream extends ServletOutputStream {
 	private final OutputStream out;
-	private long remaining;
+	private boolean closed;
 
-	public LengthOutputStream(final OutputStream out, final long length) {
+	public ChunkedOutputStream(final OutputStream out) {
 		this.out = out;
-		this.remaining = length;
 	}
 
 	@Override
@@ -27,9 +26,11 @@ public final class LengthOutputStream extends ServletOutputStream {
 
 	@Override
 	public void close() throws IOException {
-		if (remaining != 0)
-			throw new IOException("close() before Content-Length amount of data");
-		// Keep socket OutputStream open for keep-alive
+		if (closed)
+			return;
+		closed = true;
+		out.write("0\r\n\r\n".getBytes());
+		out.flush();
 	}
 
 	@Override
@@ -39,18 +40,18 @@ public final class LengthOutputStream extends ServletOutputStream {
 
 	@Override
 	public void write(final byte[] b, final int off, final int len) throws IOException {
-		if (len > remaining)
-			throw new IOException("Overrun Content-Length");
+		if(closed)
+			throw new IOException("closed stream");
+		if(len == 0)
+			return;
+		final String hexlen = Integer.toHexString(len);
+		out.write((hexlen + "\r\n").getBytes());
 		out.write(b, off, len);
-		remaining -= len;
+		out.write("\r\n".getBytes());
 	}
 
 	@Override
 	public void write(final int b) throws IOException {
-		if (remaining == 0)
-			throw new IOException("Overrun Content-Length");
-		out.write(b);
-		remaining -= 1;
+		write(new byte[] { (byte) b }, 0, 1);
 	}
-
 }

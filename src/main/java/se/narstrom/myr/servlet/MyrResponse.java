@@ -1,7 +1,6 @@
 package se.narstrom.myr.servlet;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
@@ -9,8 +8,8 @@ import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -19,14 +18,12 @@ import java.util.Map;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
-import se.narstrom.myr.http.semantics.Token;
+import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.mime.MediaType;
 import se.narstrom.myr.util.Result;
 
-public final class Response implements HttpServletResponse {
-	private final Map<Token, List<String>> headerFields = new HashMap<>();
-
-	private final OutputStream httpOutputStream;
+public final class MyrResponse implements HttpServletResponse {
+	private final HttpResponse httpResponse;
 
 	private final CommitingBufferedOutputStream commitingOutputStream;
 
@@ -34,65 +31,24 @@ public final class Response implements HttpServletResponse {
 
 	private boolean outputStreamReturned = false;
 
-	private OutputStream clientStream = null;
-
 	private PrintWriter writer = null;
-
-	private boolean commited = false;
-
-	private int status = SC_OK;
 
 	private Result<Charset, UnsupportedEncodingException> encoding = null;
 
-	public Response(final OutputStream outputStream) {
-		this.httpOutputStream = outputStream;
-		this.commitingOutputStream = new CommitingBufferedOutputStream(this);
-	}
-
-	public OutputStream commit() throws IOException {
-		if (commited)
-			throw new IllegalStateException("Already commited");
-
-		commited = true;
-		httpOutputStream.write(("HTTP/1.1 " + status + "\r\n").getBytes());
-		for (final Map.Entry<Token, List<String>> entry : headerFields.entrySet()) {
-			final Token name = entry.getKey();
-			final List<String> values = entry.getValue();
-			for (final String value : values)
-				httpOutputStream.write((name.value() + ": " + value + "\r\n").getBytes());
-		}
-		httpOutputStream.write("\r\n".getBytes());
-
-		final String contentLength = getHeader("content-length");
-		if (contentLength != null) {
-			long length = -1L;
-			try {
-				length = Long.parseLong(contentLength);
-			} catch (final NumberFormatException ex) {
-			}
-			if (length >= 0) {
-				setHeader("transfer-encoding", null);
-				clientStream = new LengthOutputStream(httpOutputStream, length);
-			}
-		}
-
-		if (clientStream == null) {
-			setHeader("transfer-encoding", "chunked");
-			setHeader("content-length", null);
-			clientStream = new ChunkedOutputStream(httpOutputStream);
-		}
-
-		return clientStream;
+	public MyrResponse(final HttpResponse httpResponse) {
+		this.httpResponse = httpResponse;
+		this.commitingOutputStream = new CommitingBufferedOutputStream(httpResponse);
 	}
 
 	void setContext(final Context context) {
 		this.context = context;
 	}
 
-	public void finish() throws IOException {
+	public void close() throws IOException {
 		if (writer != null)
 			writer.flush();
 		commitingOutputStream.close();
+		httpResponse.close();
 	}
 
 	@Override
@@ -112,7 +68,7 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public boolean containsHeader(final String name) {
-		return headerFields.containsKey(new Token(name));
+		return httpResponse.getHeaders().containsKey(name);
 	}
 
 	@Override
@@ -249,7 +205,7 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public void setBufferSize(final int size) {
-		if(commited)
+		if (httpResponse.isCommitted())
 			throw new IllegalStateException();
 		commitingOutputStream.setBufferSize(size);
 	}
@@ -268,26 +224,24 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public void resetBuffer() {
-		if (commited)
+		if (httpResponse.isCommitted())
 			throw new IllegalStateException("Response has already been committed");
 		commitingOutputStream.resetBuffer();
 	}
 
 	@Override
 	public boolean isCommitted() {
-		return commited;
+		return httpResponse.isCommitted();
 	}
 
 	@Override
 	public void reset() {
-		if (commited)
+		if (httpResponse.isCommitted())
 			throw new IllegalStateException("Response has already been committed");
 		commitingOutputStream.resetBuffer();
 		outputStreamReturned = false;
 		writer = null;
-		clientStream = null;
-		status = SC_OK;
-		headerFields.clear();
+		httpResponse.reset();
 	}
 
 	@Override
@@ -340,16 +294,12 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public void setHeader(final String name, final String value) {
-		final Token token = new Token(name.toLowerCase());
-		if (value != null)
-			headerFields.put(token, new ArrayList<>(List.of(value)));
-		else
-			headerFields.remove(token);
+		httpResponse.setHeader(name, value);
 	}
 
 	@Override
-	public void addHeader(String name, String value) {
-		headerFields.computeIfAbsent(new Token(name.toLowerCase()), _ -> new ArrayList<>()).add(value);
+	public void addHeader(final String name, final String value) {
+		httpResponse.addHeader(name, value);
 	}
 
 	@Override
@@ -364,27 +314,32 @@ public final class Response implements HttpServletResponse {
 
 	@Override
 	public void setStatus(final int status) {
-		if (status < 100 || status >= 600)
+		if (status < 200 || status >= 600)
 			throw new IllegalArgumentException("Invalid status code: " + status);
-		this.status = status;
+		httpResponse.setStatus(status);
 	}
 
 	@Override
 	public int getStatus() {
-		return status;
+		return httpResponse.getStatus();
 	}
 
 	@Override
 	public String getHeader(final String name) {
-		final List<String> values = headerFields.get(new Token(name.toLowerCase()));
-		if (values == null)
+		final List<String> values = httpResponse.getHeaders().get(name);
+		if(values == null)
 			return null;
-		return values.getFirst();
+		else
+			return values.getFirst();
 	}
 
 	@Override
-	public Collection<String> getHeaders(String name) {
-		throw new UnsupportedOperationException();
+	public Collection<String> getHeaders(final String name) {
+		final List<String> values = httpResponse.getHeaders().get(name);
+		if(values == null)
+			return Collections.emptySet();
+		else
+			return Collections.unmodifiableCollection(values);
 	}
 
 	@Override

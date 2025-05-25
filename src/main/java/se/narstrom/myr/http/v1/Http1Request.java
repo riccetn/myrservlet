@@ -13,7 +13,7 @@ import se.narstrom.myr.http.semantics.Method;
 import se.narstrom.myr.http.semantics.Token;
 import se.narstrom.myr.uri.Query;
 
-public class Http1Request implements HttpRequest {
+public final class Http1Request implements HttpRequest {
 	private final Method method;
 
 	private final AbsolutePath requestUri;

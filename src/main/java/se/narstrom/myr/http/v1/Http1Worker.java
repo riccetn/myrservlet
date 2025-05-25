@@ -17,7 +17,6 @@ import se.narstrom.myr.http.semantics.FieldValue;
 import se.narstrom.myr.http.semantics.Token;
 import se.narstrom.myr.net.ServerClientWorker;
 import se.narstrom.myr.servlet.Container;
-import se.narstrom.myr.servlet.Response;
 
 public final class Http1Worker implements ServerClientWorker {
 	private final Container container;
@@ -48,15 +47,10 @@ public final class Http1Worker implements ServerClientWorker {
 		final ServletInputStream servletInputStream = createServletStream(fields);
 
 		final Http1Request request = new Http1Request(requestLine.method(), requestLine.target().absolutePath(), requestLine.target().query(), fields, socket, servletInputStream);
-		final Response response = new Response(out);
+		final Http1Response response = new Http1Response(out);
 
-		try {
-			container.service(request, response);
-			response.finish();
-		} catch (final InterruptedException ex) {
-			Thread.currentThread().interrupt();
-			throw new IOException(ex);
-		}
+		container.service(request, response);
+		response.close();
 	}
 
 	private ServletInputStream createServletStream(final Map<Token, List<FieldValue>> fields) {

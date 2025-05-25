@@ -20,7 +20,7 @@ public final class AsyncHandler implements AsyncContext {
 
 	private HttpServletRequest originalRequest = null;
 
-	private Response originalResponse = null;
+	private HttpServletResponse originalResponse = null;
 
 	private HttpServletRequest request = null;
 
@@ -32,7 +32,7 @@ public final class AsyncHandler implements AsyncContext {
 
 	private String path = null;
 
-	void service(final HttpServletRequest request, final Response response) throws InterruptedException {
+	void service(final HttpServletRequest request, final HttpServletResponse response) throws InterruptedException {
 		lock.lock();
 		try {
 			if (state != State.DISPATCHING)

@@ -10,6 +10,7 @@ import java.util.logging.Logger;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletResponse;
 import se.narstrom.myr.http.HttpRequest;
+import se.narstrom.myr.http.HttpResponse;
 
 public final class Container implements AutoCloseable {
 	private final Logger logger = Logger.getLogger(getClass().getName());
@@ -27,8 +28,10 @@ public final class Container implements AutoCloseable {
 	public void close() {
 	}
 
-	public void service(final HttpRequest httpRequest, final Response response) throws IOException {
+	public void service(final HttpRequest httpRequest, final HttpResponse httpResponse) throws IOException {
 		final MyrRequest request = new MyrRequest(httpRequest);
+		final MyrResponse response = new MyrResponse(httpResponse);
+
 		final String uri = request.getRequestURI();
 		if (uri.charAt(0) != '/') {
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Bad Request");
@@ -60,6 +63,7 @@ public final class Container implements AutoCloseable {
 		request.setContext(context);
 		response.setContext(context);
 		context.service(request, response);
+		response.close();
 	}
 
 	public void addContext(final Context context) {
