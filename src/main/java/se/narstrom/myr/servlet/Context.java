@@ -25,7 +25,6 @@ import java.util.logging.Logger;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterRegistration;
-import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
@@ -290,12 +289,12 @@ public final class Context implements AutoCloseable, ServletContext {
 	@Override
 	public Set<String> getResourcePaths(final String path) {
 		final Set<String> result = new HashSet<>();
-		final boolean slash = path.charAt(path.length()-1) == '/';
+		final boolean slash = path.charAt(path.length() - 1) == '/';
 
 		final Path realPath = Paths.get(getRealPath(path));
 		try (final DirectoryStream<Path> dir = Files.newDirectoryStream(realPath)) {
-			for(final Path child : dir) {
-				if(slash)
+			for (final Path child : dir) {
+				if (slash)
 					result.add(path + realPath.relativize(child).toString());
 				else
 					result.add(path + "/" + realPath.relativize(child).toString());
@@ -370,12 +369,16 @@ public final class Context implements AutoCloseable, ServletContext {
 
 		logger.log(Level.INFO, "Creating Dispatcher for uri {0} to servlet {1}", new Object[] { uri, servletName });
 
-		return new Dispatcher(this, registrations.get(servletName));
+		return getNamedDispatcher(servletName);
 	}
 
 	@Override
-	public RequestDispatcher getNamedDispatcher(String name) {
-		throw new UnsupportedOperationException();
+	public Dispatcher getNamedDispatcher(final String name) {
+		final Registration registration = registrations.get(name);
+		if (registration == null)
+			return null;
+		else
+			return new Dispatcher(this, registrations.get(name));
 	}
 
 	@Override
