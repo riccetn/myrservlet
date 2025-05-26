@@ -31,6 +31,8 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 
 	private Path base;
 
+	private Path temproot;
+
 	private Server server;
 
 	private Container container;
@@ -52,6 +54,7 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 		System.out.println("start()");
 		try {
 			base = Files.createTempDirectory("webroot");
+			temproot = Files.createTempDirectory("temproot");
 
 			container = new Container();
 			server = new Server(new ServerSocket(8080), Executors.newVirtualThreadPerTaskExecutor(), new Http1WorkerFactory(container));
@@ -112,6 +115,7 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 
 		final String name = archiveName.substring(0, archiveName.length() - 4);
 		final Path deploymentPath = base.resolve(name);
+		final Path tempPath = temproot.resolve(name);
 
 		archive.as(ZipExporter.class).exportTo(archivePath.toFile());
 
@@ -119,6 +123,12 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 			ZipUtils.extract(deploymentPath, archivePath);
 		} catch (final IOException ex) {
 			throw new DeploymentException("Could not extract archive", ex);
+		}
+
+		try {
+			Files.createDirectories(tempPath);
+		} catch(final IOException ex) {
+			throw new DeploymentException("Could not create temp directory", ex);
 		}
 
 		final String contextPath = "/" + name;
@@ -130,6 +140,8 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 		} catch (final IOException ex) {
 			throw new DeploymentException(name, ex);
 		}
+
+		context.setAttribute("jakarta.servlet.context.tempdir", tempPath.toFile());
 
 		container.addContext(context);
 
@@ -155,6 +167,7 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 
 		final String name = archiveName.substring(0, archiveName.length() - 4);
 		final Path deploymentPath = base.resolve(name);
+		final Path tempPath = temproot.resolve(name);
 
 		final String contextPath = "/" + name;
 
@@ -167,8 +180,13 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 			ex.printStackTrace();
 		}
 
+		deleteTree(deploymentPath);
+		deleteTree(tempPath);
+	}
+
+	private void deleteTree(final Path root) {
 		try {
-			Files.walkFileTree(deploymentPath, new SimpleFileVisitor<Path>() {
+			Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
 				@Override
 				public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) throws IOException {
 					try {

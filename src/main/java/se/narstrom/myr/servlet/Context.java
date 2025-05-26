@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -13,6 +14,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -287,7 +289,21 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public Set<String> getResourcePaths(final String path) {
-		return Set.of(base.resolve(path).toString());
+		final Set<String> result = new HashSet<>();
+		final boolean slash = path.charAt(path.length()-1) == '/';
+
+		final Path realPath = Paths.get(getRealPath(path));
+		try (final DirectoryStream<Path> dir = Files.newDirectoryStream(realPath)) {
+			for(final Path child : dir) {
+				if(slash)
+					result.add(path + realPath.relativize(child).toString());
+				else
+					result.add(path + "/" + realPath.relativize(child).toString());
+			}
+		} catch (final IOException ex) {
+			throw new RuntimeException(ex);
+		}
+		return result;
 	}
 
 	@Override
