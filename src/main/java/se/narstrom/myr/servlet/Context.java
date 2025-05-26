@@ -140,10 +140,8 @@ public final class Context implements AutoCloseable, ServletContext {
 				exceptionClass = exceptionClass.getSuperclass();
 			}
 
-			request = new ErrorRequest(request);
-
 			if (path != null) {
-				getRequestDispatcher(path).request(request, response);
+				getRequestDispatcher(path).error(request, response, ex, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 				return;
 			}
 

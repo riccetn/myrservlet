@@ -46,6 +46,21 @@ public final class Dispatcher implements RequestDispatcher {
 		dispatch(new IncludeRequest((HttpServletRequest) request), (HttpServletResponse) response);
 	}
 
+	public void error(final HttpServletRequest request, final HttpServletResponse response, final Throwable throwable, final int errorCode) throws ServletException, IOException {
+		final ErrorRequest errorRequest = new ErrorRequest(request);
+		errorRequest.setAttribute(ERROR_EXCEPTION, throwable);
+		errorRequest.setAttribute(ERROR_EXCEPTION_TYPE, throwable.getClass());
+		errorRequest.setAttribute(ERROR_MESSAGE, throwable.getMessage());
+		errorRequest.setAttribute(ERROR_METHOD, request.getMethod());
+		errorRequest.setAttribute(ERROR_QUERY_STRING, request.getQueryString());
+		errorRequest.setAttribute(ERROR_REQUEST_URI, request.getRequestURI());
+		errorRequest.setAttribute(ERROR_STATUS_CODE, errorCode);
+		errorRequest.setAttribute(ERROR_SERVLET_NAME, "TODO: Get servlet name");
+		response.reset();
+		response.setStatus(errorCode);
+		dispatch(errorRequest, response);
+	}
+
 	private void dispatch(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		Thread.currentThread().setContextClassLoader(context.getClassLoader());
 
