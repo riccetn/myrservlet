@@ -37,13 +37,14 @@ public final class Dispatcher implements RequestDispatcher {
 	@Override
 	public void forward(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
 		logger.log(Level.INFO, "FORWARD to servlet ''{0}''", registration.getName());
+		response.reset();
 		dispatch(new ForwardRequest((HttpServletRequest) request), (HttpServletResponse) response);
 	}
 
 	@Override
 	public void include(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
 		logger.log(Level.INFO, "INCLUDE servlet ''{0}''", registration.getName());
-		dispatch(new IncludeRequest((HttpServletRequest) request), (HttpServletResponse) response);
+		dispatch(new IncludeRequest((HttpServletRequest) request), new IncludeResponse((HttpServletResponse) response));
 	}
 
 	public void error(final HttpServletRequest request, final HttpServletResponse response, final Throwable throwable, final int errorCode) throws ServletException, IOException {
