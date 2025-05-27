@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 
 import ee.jakarta.xml.ns.jakartaee.ErrorPageType;
+import ee.jakarta.xml.ns.jakartaee.ListenerType;
 import ee.jakarta.xml.ns.jakartaee.LocaleEncodingMappingListType;
 import ee.jakarta.xml.ns.jakartaee.LocaleEncodingMappingType;
 import ee.jakarta.xml.ns.jakartaee.MimeMappingType;
@@ -31,6 +32,10 @@ public final class Deployer {
 
 		for (final ParamValueType param : webApp.getContextParam()) {
 			context.setInitParameter(param.getParamName().getValue(), param.getParamValue().getValue());
+		}
+
+		for (final ListenerType listener : webApp.getListener()) {
+			context.addListener(listener.getListenerClass().getValue());
 		}
 
 		for (final ServletType servlet : webApp.getServlet()) {

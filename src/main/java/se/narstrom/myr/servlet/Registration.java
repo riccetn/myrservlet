@@ -1,8 +1,11 @@
 package se.narstrom.myr.servlet;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -21,6 +24,8 @@ public final class Registration implements ServletRegistration.Dynamic {
 	private final String className;
 
 	private final Map<String, String> initParameters = new HashMap<>();
+
+	private final List<String> mappings = new ArrayList<>();
 
 	private Servlet servlet;
 
@@ -54,7 +59,7 @@ public final class Registration implements ServletRegistration.Dynamic {
 	}
 
 	void destroy() {
-		if(!inited)
+		if (!inited)
 			return;
 		inited = false;
 		servlet.destroy();
@@ -74,13 +79,15 @@ public final class Registration implements ServletRegistration.Dynamic {
 		for (final String pattern : urlPatterns) {
 			if (!context.addMapping(pattern, name))
 				ret.add(pattern);
+			else
+				mappings.add(pattern);
 		}
 		return ret;
 	}
 
 	@Override
 	public Collection<String> getMappings() {
-		throw new UnsupportedOperationException();
+		return Collections.unmodifiableCollection(mappings);
 	}
 
 	@Override
@@ -100,9 +107,10 @@ public final class Registration implements ServletRegistration.Dynamic {
 
 	@Override
 	public boolean setInitParameter(final String name, final String value) {
-		Objects.requireNonNull(name);
-		final String oldValue = initParameters.put(name, value);
-		return !Objects.equals(value, oldValue);
+		if (initParameters.containsKey(name))
+			return false;
+		initParameters.put(name, value);
+		return true;
 	}
 
 	@Override
@@ -112,14 +120,14 @@ public final class Registration implements ServletRegistration.Dynamic {
 
 	@Override
 	public Set<String> setInitParameters(final Map<String, String> initParameters) {
-		final Set<String> ret = new HashSet<>();
-		for (final Map.Entry<String, String> entry : initParameters.entrySet()) {
-			if (initParameters.containsKey(entry.getKey()))
-				ret.add(entry.getKey());
-			else
-				this.initParameters.put(entry.getKey(), entry.getValue());
+		final Set<String> successful = new HashSet<>();
+		for (final Map.Entry<String, String> initParameter : initParameters.entrySet()) {
+			final String name = initParameter.getKey();
+			final String value = initParameter.getValue();
+			if (setInitParameter(name, value))
+				successful.add(name);
 		}
-		return ret;
+		return successful;
 	}
 
 	@Override

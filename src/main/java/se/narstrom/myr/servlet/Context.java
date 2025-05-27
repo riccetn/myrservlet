@@ -10,11 +10,13 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -27,6 +29,8 @@ import jakarta.servlet.Filter;
 import jakarta.servlet.FilterRegistration;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletContextEvent;
+import jakarta.servlet.ServletContextListener;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.SessionCookieConfig;
@@ -49,6 +53,8 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	private final Map<String, Registration> registrations = new HashMap<>();
 
+	private final Map<String, MyrFilterRegistration> filterRegistrations = new HashMap<>();
+
 	private String defaultServlet = null;
 
 	private final Map<String, String> extentionMappings = new HashMap<>();
@@ -64,6 +70,10 @@ public final class Context implements AutoCloseable, ServletContext {
 	private final Map<Locale, Charset> localeEncodingMappings = new HashMap<>();
 
 	private final Map<String, String> mimeTypeMappings = new HashMap<>();
+
+	private final List<ServletContextListener> servletContextListeners = new ArrayList<>();
+
+	private final Map<String, List<String>> servletNameFilterMappings = new HashMap<>();
 
 	private boolean inited = false;
 
@@ -90,8 +100,15 @@ public final class Context implements AutoCloseable, ServletContext {
 	public void init() {
 		if (inited)
 			return;
-		inited = true;
+
 		logger.info("Initializing servlet context");
+
+		final ServletContextEvent event = new ServletContextEvent(this);
+		for (final ServletContextListener listener : servletContextListeners) {
+			listener.contextInitialized(event);
+		}
+
+		inited = true;
 	}
 
 	public void destroy() {
@@ -234,6 +251,14 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	void addMimeTypeMapping(final String extension, final String mediaType) {
 		mimeTypeMappings.put(extension, mediaType);
+	}
+
+	void addServletNameFilterMapping(final String servletName, final boolean isMatchAfter, final String filterName) {
+		final List<String> mappings = servletNameFilterMappings.computeIfAbsent(servletName, _ -> new ArrayList<>());
+		if (isMatchAfter)
+			mappings.addLast(filterName);
+		else
+			mappings.addFirst(filterName);
 	}
 
 	@Override
@@ -509,33 +534,49 @@ public final class Context implements AutoCloseable, ServletContext {
 	}
 
 	@Override
-	public FilterRegistration.Dynamic addFilter(String filterName, String className) {
-		throw new UnsupportedOperationException();
+	public FilterRegistration.Dynamic addFilter(final String filterName, final String className) {
+		if (filterRegistrations.containsKey(filterName))
+			return null;
+		final MyrFilterRegistration registration = new MyrFilterRegistration(this, filterName, className);
+		filterRegistrations.put(filterName, registration);
+		return registration;
 	}
 
 	@Override
-	public FilterRegistration.Dynamic addFilter(String filterName, Filter filter) {
-		throw new UnsupportedOperationException();
+	public FilterRegistration.Dynamic addFilter(final String filterName, final Filter filter) {
+		if (filterRegistrations.containsKey(filterName))
+			return null;
+		final MyrFilterRegistration registration = new MyrFilterRegistration(this, filterName, filter);
+		filterRegistrations.put(filterName, registration);
+		return registration;
 	}
 
 	@Override
-	public FilterRegistration.Dynamic addFilter(String filterName, Class<? extends Filter> filterClass) {
-		throw new UnsupportedOperationException();
+	public FilterRegistration.Dynamic addFilter(final String filterName, final Class<? extends Filter> filterClass) {
+		if (filterRegistrations.containsKey(filterName))
+			return null;
+		final MyrFilterRegistration registration = new MyrFilterRegistration(this, filterName, filterClass);
+		filterRegistrations.put(filterName, registration);
+		return registration;
 	}
 
 	@Override
-	public <T extends Filter> T createFilter(Class<T> clazz) throws ServletException {
-		throw new UnsupportedOperationException();
+	public <T extends Filter> T createFilter(final Class<T> clazz) throws ServletException {
+		try {
+			return clazz.getConstructor().newInstance();
+		} catch (final ReflectiveOperationException ex) {
+			throw new ServletException(ex);
+		}
 	}
 
 	@Override
-	public FilterRegistration getFilterRegistration(String filterName) {
-		throw new UnsupportedOperationException();
+	public FilterRegistration getFilterRegistration(final String filterName) {
+		return filterRegistrations.get(filterName);
 	}
 
 	@Override
 	public Map<String, ? extends FilterRegistration> getFilterRegistrations() {
-		throw new UnsupportedOperationException();
+		return Collections.unmodifiableMap(filterRegistrations);
 	}
 
 	@Override
@@ -559,23 +600,42 @@ public final class Context implements AutoCloseable, ServletContext {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void addListener(final String className) {
-		throw new UnsupportedOperationException();
+		final Class<EventListener> clazz;
+		try {
+			clazz = (Class<EventListener>) classLoader.loadClass(className);
+		} catch (final ClassNotFoundException ex) {
+			throw new RuntimeException(ex);
+		}
+		addListener(clazz);
 	}
 
 	@Override
-	public <T extends EventListener> void addListener(T t) {
-		throw new UnsupportedOperationException();
+	public <T extends EventListener> void addListener(final T listener) {
+		switch (listener) {
+			case ServletContextListener l -> servletContextListeners.add(l);
+			default -> {
+			}
+		}
 	}
 
 	@Override
 	public void addListener(Class<? extends EventListener> listenerClass) {
-		throw new UnsupportedOperationException();
+		try {
+			addListener(createListener(listenerClass));
+		} catch (final ServletException ex) {
+			throw new RuntimeException(ex);
+		}
 	}
 
 	@Override
 	public <T extends EventListener> T createListener(Class<T> clazz) throws ServletException {
-		throw new UnsupportedOperationException();
+		try {
+			return clazz.getConstructor().newInstance();
+		} catch (final ReflectiveOperationException ex) {
+			throw new ServletException(ex);
+		}
 	}
 
 	@Override
