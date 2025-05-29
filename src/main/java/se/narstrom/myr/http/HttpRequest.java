@@ -7,7 +7,7 @@ import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletInputStream;
 
 public interface HttpRequest {
-	public Map<String, List<String>> getHeaderfields();
+	public Map<String, List<String>> getHeaderFields();
 
 	public ServletInputStream getInputStream();
 

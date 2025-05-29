@@ -63,6 +63,8 @@ public final class MyrRequest implements HttpServletRequest {
 
 	private List<Locale> locales = null;
 
+	private Session session;
+
 	public MyrRequest(final HttpRequest httpRequest) {
 		this.httpReqeust = httpRequest;
 	}
@@ -413,12 +415,17 @@ public final class MyrRequest implements HttpServletRequest {
 				cookies.addAll(CookieParser.parse(cookieString));
 			}
 		}
+		if(cookies.isEmpty())
+			return null;
 		return cookies.toArray(Cookie[]::new);
 	}
 
 	@Override
 	public long getDateHeader(final String name) {
-		return LocalDateTime.parse(getHeader(name), DateTimeFormatter.RFC_1123_DATE_TIME).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
+		final String dateString = getHeader(name);
+		if (dateString == null)
+			return -1L;
+		return LocalDateTime.parse(dateString, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
 	}
 
 	@Override
@@ -431,7 +438,7 @@ public final class MyrRequest implements HttpServletRequest {
 
 	@Override
 	public Enumeration<String> getHeaders(final String name) {
-		final List<String> values = httpReqeust.getHeaderfields().get(name);
+		final List<String> values = httpReqeust.getHeaderFields().get(name.toLowerCase());
 		if (values != null)
 			return Collections.enumeration(values);
 		return Collections.emptyEnumeration();
@@ -439,13 +446,16 @@ public final class MyrRequest implements HttpServletRequest {
 
 	@Override
 	public Enumeration<String> getHeaderNames() {
-		final Set<String> names = httpReqeust.getHeaderfields().keySet();
+		final Set<String> names = httpReqeust.getHeaderFields().keySet();
 		return Collections.enumeration(names);
 	}
 
 	@Override
 	public int getIntHeader(final String name) {
-		return Integer.parseInt(getHeader(name));
+		final String value = getHeader(name);
+		if (value == null)
+			return -1;
+		return Integer.parseInt(value);
 	}
 
 	@Override
@@ -475,7 +485,8 @@ public final class MyrRequest implements HttpServletRequest {
 
 	@Override
 	public String getRemoteUser() {
-		throw new UnsupportedOperationException();
+		// TODO: maybeAuthenticate();
+		return null;
 	}
 
 	@Override
@@ -518,12 +529,13 @@ public final class MyrRequest implements HttpServletRequest {
 
 	@Override
 	public HttpSession getSession(boolean create) {
-		throw new UnsupportedOperationException();
+		maybeInitSession(create);
+		return session;
 	}
 
 	@Override
 	public HttpSession getSession() {
-		throw new UnsupportedOperationException();
+		return getSession(true);
 	}
 
 	@Override
@@ -533,7 +545,8 @@ public final class MyrRequest implements HttpServletRequest {
 
 	@Override
 	public boolean isRequestedSessionIdValid() {
-		throw new UnsupportedOperationException();
+		// TODO: maybeInitSession();
+		return false;
 	}
 
 	@Override
@@ -543,7 +556,13 @@ public final class MyrRequest implements HttpServletRequest {
 
 	@Override
 	public boolean isRequestedSessionIdFromURL() {
-		throw new UnsupportedOperationException();
+		// TODO: maybeInitSession();
+		return false;
+	}
+
+	private void maybeInitSession(boolean create) {
+		if (session == null && create)
+			session = new Session();
 	}
 
 	@Override

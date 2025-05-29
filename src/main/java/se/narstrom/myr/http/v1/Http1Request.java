@@ -36,7 +36,7 @@ public final class Http1Request implements HttpRequest {
 	}
 
 	@Override
-	public Map<String, List<String>> getHeaderfields() {
+	public Map<String, List<String>> getHeaderFields() {
 		return headerFields.entrySet().stream().collect(Collectors.toUnmodifiableMap(entry -> entry.getKey().toString(), entry -> entry.getValue().stream().map(FieldValue::toString).toList()));
 	}
 

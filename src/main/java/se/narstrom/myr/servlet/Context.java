@@ -39,6 +39,7 @@ import jakarta.servlet.UnavailableException;
 import jakarta.servlet.descriptor.JspConfigDescriptor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import se.narstrom.myr.http.v1.RequestTarget;
 
 public final class Context implements AutoCloseable, ServletContext {
 	private final Logger logger;
@@ -351,9 +352,9 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public Dispatcher getRequestDispatcher(String uri) {
-		final int questionMark = uri.indexOf('?');
-		if (questionMark > -1)
-			uri = uri.substring(0, questionMark);
+		final RequestTarget target = RequestTarget.parse(uri);
+		final CanonicalizedPath canonicalizedPath = CanonicalizedPath.canonicalize(target.absolutePath());
+		uri = canonicalizedPath.toString();
 
 		String servletName = null;
 		servletName = exactMappings.get(uri);
