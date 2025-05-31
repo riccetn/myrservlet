@@ -1,13 +1,16 @@
 package se.narstrom.myr.http;
 
-import java.util.List;
-import java.util.Map;
+import java.util.Enumeration;
 
 import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletInputStream;
 
 public interface HttpRequest {
-	public Map<String, List<String>> getHeaderFields();
+	public String getHeader(final String name);
+
+	public Enumeration<String> getHeaderNames();
+
+	public Enumeration<String> getHeaders(final String name);
 
 	public ServletInputStream getInputStream();
 

@@ -7,14 +7,11 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import jakarta.servlet.ServletInputStream;
 import se.narstrom.myr.http.semantics.Field;
-import se.narstrom.myr.http.semantics.FieldValue;
-import se.narstrom.myr.http.semantics.Token;
+import se.narstrom.myr.http.semantics.Fields;
 import se.narstrom.myr.net.ServerClientWorker;
 import se.narstrom.myr.servlet.Container;
 
@@ -37,38 +34,42 @@ public final class Http1Worker implements ServerClientWorker {
 	@Override
 	public void run() throws IOException {
 		final RequestLine requestLine = RequestLine.parse(readLine());
-		final Map<Token, List<FieldValue>> fields = new HashMap<>();
-		String fieldLine;
-		while (!(fieldLine = readLine()).isEmpty()) {
-			final Field field = Field.parse(fieldLine);
-			fields.computeIfAbsent(field.name(), _ -> new ArrayList<>()).add(field.value());
-		}
+		final Fields headerFields = readFields();
 
-		final ServletInputStream servletInputStream = createServletStream(fields);
+		final ServletInputStream servletInputStream = createServletStream(headerFields);
 
-		final Http1Request request = new Http1Request(requestLine.method(), requestLine.target().absolutePath(), requestLine.target().query(), fields, socket, servletInputStream);
+		final Http1Request request = new Http1Request(requestLine.method(), requestLine.target().absolutePath(), requestLine.target().query(), headerFields, socket, servletInputStream);
 		final Http1Response response = new Http1Response(out);
 
 		container.service(request, response);
 		response.close();
 	}
 
-	private ServletInputStream createServletStream(final Map<Token, List<FieldValue>> fields) {
-		final List<FieldValue> contentLength = fields.get(new Token("content-length"));
+	private ServletInputStream createServletStream(final Fields fields) {
+		final String contentLength = fields.getField("content-length");
 
-		if(contentLength == null) {
+		if (contentLength == null) {
 			return new LengthInputStream(null, 0L);
 		}
 
 		final long length;
 		try {
-			length = Long.parseLong(contentLength.getFirst().toString());
-		} catch(final NumberFormatException ex) {
+			length = Long.parseLong(contentLength.toString());
+		} catch (final NumberFormatException ex) {
 			// TODO: Bad Request
 			return new LengthInputStream(null, 0L);
 		}
 
 		return new LengthInputStream(in, length);
+	}
+
+	private Fields readFields() throws IOException {
+		final List<Field> fieldList = new ArrayList<>();
+		String fieldLine;
+		while (!(fieldLine = readLine()).isEmpty()) {
+			fieldList.add(Field.parse(fieldLine));
+		}
+		return new Fields(fieldList);
 	}
 
 	private String readLine() throws IOException {

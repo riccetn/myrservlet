@@ -14,15 +14,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Locale.LanguageRange;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.DispatcherType;
@@ -41,21 +39,17 @@ import jakarta.servlet.http.Part;
 import se.narstrom.myr.http.HttpRequest;
 import se.narstrom.myr.http.cookie.CookieParser;
 import se.narstrom.myr.mime.MediaType;
-import se.narstrom.myr.uri.UrlEncoding;
 import se.narstrom.myr.util.Result;
 
+// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#the-request
 public final class MyrRequest implements HttpServletRequest {
 	private final Logger logger = Logger.getLogger(getClass().getName());
 
 	private final HttpRequest httpReqeust;
 
-	private final Map<String, Object> attributes = new HashMap<>();
-
 	private boolean inputStreamReturned = false;
 
 	private Context context;
-
-	private Map<String, List<String>> parameters = null;
 
 	private BufferedReader reader = null;
 
@@ -73,15 +67,128 @@ public final class MyrRequest implements HttpServletRequest {
 		this.context = context;
 	}
 
+
+	// 3.1. HTTP Protocol Parameters
+	// =============================
+	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#http-protocol-parameters
+	private Parameters parameters = null;
+
 	@Override
-	public Object getAttribute(String name) {
-		return attributes.get(name);
+	public String getParameter(final String name) {
+		Objects.requireNonNull(name);
+		maybeInitParameters();
+		return parameters.getParameter(name);
+	}
+
+	@Override
+	public Enumeration<String> getParameterNames() {
+		maybeInitParameters();
+		return parameters.getParameterNames();
+	}
+
+	@Override
+	public String[] getParameterValues(final String name) {
+		Objects.requireNonNull(name);
+		maybeInitParameters();
+		return parameters.getParameterValues(name);
+	}
+
+	@Override
+	public Map<String, String[]> getParameterMap() {
+		maybeInitParameters();
+		return parameters.getParameterMap();
+	}
+
+	private void maybeInitParameters() {
+		if (parameters != null)
+			return;
+
+		final String contentTypeString = getContentType();
+		final MediaType contentType;
+		if (contentTypeString == null)
+			contentType = null;
+		else
+			contentType = MediaType.parse(contentTypeString);
+
+		if (contentType != null && contentType.type().equals("application") && contentType.type().equals("x-www-form-urlencoded")) {
+			try {
+				parameters = Parameters.parseUrlEncoded(getQueryString(), getReader());
+			} catch (final IOException ex) {
+				throw new IllegalStateException(ex);
+			}
+		} else {
+			parameters = Parameters.parseQueryOnly(getQueryString());
+		}
+	}
+
+
+	// 3.3. Attributes
+	// ==========
+	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#attributes
+	private final Attributes attributes = new Attributes();
+
+	@Override
+	public Object getAttribute(final String name) {
+		return attributes.getAttribute(name);
 	}
 
 	@Override
 	public Enumeration<String> getAttributeNames() {
-		return Collections.enumeration(attributes.keySet());
+		return attributes.getAttributeNames();
 	}
+
+	@Override
+	public String getRemoteHost() {
+		return httpReqeust.getRemoteHost();
+	}
+
+	@Override
+	public void setAttribute(final String name, final Object obj) {
+		attributes.setAttribute(name, obj);
+	}
+
+	@Override
+	public void removeAttribute(final String name) {
+		attributes.removeAttribute(name);
+	}
+
+
+	// 3.4. Headers
+	// ============
+	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#headers
+	@Override
+	public String getHeader(final String name) {
+		Objects.requireNonNull(name);
+		return httpReqeust.getHeader(name);
+	}
+
+	@Override
+	public Enumeration<String> getHeaders(final String name) {
+		Objects.requireNonNull(name);
+		return httpReqeust.getHeaders(name);
+	}
+
+	@Override
+	public Enumeration<String> getHeaderNames() {
+		return httpReqeust.getHeaderNames();
+	}
+
+	@Override
+	public long getDateHeader(final String name) {
+		final String dateString = getHeader(name);
+		if (dateString == null)
+			return -1L;
+		return LocalDateTime.parse(dateString, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
+	}
+
+	@Override
+	public int getIntHeader(final String name) {
+		final String value = getHeader(name);
+		if (value == null)
+			return -1;
+		return Integer.parseInt(value);
+	}
+
 
 	@Override
 	public String getCharacterEncoding() {
@@ -163,75 +270,6 @@ public final class MyrRequest implements HttpServletRequest {
 	}
 
 	@Override
-	public String getParameter(String name) {
-		maybeInitParameters();
-		final List<String> values = parameters.get(name);
-		if (values == null)
-			return null;
-		return values.getFirst();
-	}
-
-	@Override
-	public Enumeration<String> getParameterNames() {
-		maybeInitParameters();
-		return Collections.enumeration(parameters.keySet());
-	}
-
-	@Override
-	public String[] getParameterValues(final String name) {
-		maybeInitParameters();
-		final List<String> values = parameters.get(name);
-		if (values == null)
-			return null;
-		return values.toArray(String[]::new);
-	}
-
-	@Override
-	public Map<String, String[]> getParameterMap() {
-		maybeInitParameters();
-		return parameters.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().toArray(String[]::new)));
-	}
-
-	private void maybeInitParameters() {
-		if (parameters != null)
-			return;
-
-		parameters = new HashMap<>();
-
-		final String query = getQueryString();
-		if (query != null) {
-			final Map<String, List<String>> queryParameters = UrlEncoding.parse(query);
-			for (final Map.Entry<String, List<String>> ent : queryParameters.entrySet()) {
-				parameters.computeIfAbsent(ent.getKey(), _ -> new ArrayList<>()).addAll(ent.getValue());
-			}
-		}
-
-		final String contentType = getContentType();
-		MediaType mediaType = null;
-		if (contentType != null) {
-			mediaType = MediaType.parse(contentType);
-		}
-
-		if (mediaType != null && mediaType.type().equals("application") && mediaType.subtype().equals("x-www-form-urlencoded")) {
-			getCharacterEncoding();
-
-			byte[] contentBytes = null;
-			try {
-				contentBytes = getInputStream().readAllBytes();
-				if (contentBytes != null) {
-					final String content = new String(contentBytes, encoding.value());
-					final Map<String, List<String>> contentParams = UrlEncoding.parse(content);
-					for (final Map.Entry<String, List<String>> ent : contentParams.entrySet()) {
-						parameters.computeIfAbsent(ent.getKey(), _ -> new ArrayList<>()).addAll(ent.getValue());
-					}
-				}
-			} catch (final IOException ex) {
-				throw new IllegalStateException(ex);
-			}
-		}
-	}
-
-	@Override
 	public String getProtocol() {
 		return httpReqeust.getProtocol();
 	}
@@ -271,24 +309,6 @@ public final class MyrRequest implements HttpServletRequest {
 	@Override
 	public String getRemoteAddr() {
 		return httpReqeust.getRemoteAddr();
-	}
-
-	@Override
-	public String getRemoteHost() {
-		return httpReqeust.getRemoteHost();
-	}
-
-	@Override
-	public void setAttribute(final String name, final Object obj) {
-		if (obj == null)
-			attributes.remove(name);
-		else
-			attributes.put(name, obj);
-	}
-
-	@Override
-	public void removeAttribute(final String name) {
-		attributes.remove(name);
 	}
 
 	@Override
@@ -415,47 +435,9 @@ public final class MyrRequest implements HttpServletRequest {
 				cookies.addAll(CookieParser.parse(cookieString));
 			}
 		}
-		if(cookies.isEmpty())
+		if (cookies.isEmpty())
 			return null;
 		return cookies.toArray(Cookie[]::new);
-	}
-
-	@Override
-	public long getDateHeader(final String name) {
-		final String dateString = getHeader(name);
-		if (dateString == null)
-			return -1L;
-		return LocalDateTime.parse(dateString, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
-	}
-
-	@Override
-	public String getHeader(final String name) {
-		final Enumeration<String> values = getHeaders(name);
-		if (values != null && values.hasMoreElements())
-			return values.nextElement();
-		return null;
-	}
-
-	@Override
-	public Enumeration<String> getHeaders(final String name) {
-		final List<String> values = httpReqeust.getHeaderFields().get(name.toLowerCase());
-		if (values != null)
-			return Collections.enumeration(values);
-		return Collections.emptyEnumeration();
-	}
-
-	@Override
-	public Enumeration<String> getHeaderNames() {
-		final Set<String> names = httpReqeust.getHeaderFields().keySet();
-		return Collections.enumeration(names);
-	}
-
-	@Override
-	public int getIntHeader(final String name) {
-		final String value = getHeader(name);
-		if (value == null)
-			return -1;
-		return Integer.parseInt(value);
 	}
 
 	@Override

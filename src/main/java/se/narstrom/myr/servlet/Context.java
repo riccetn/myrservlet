@@ -41,6 +41,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import se.narstrom.myr.http.v1.RequestTarget;
 
+// 4. Servlet Context
+// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#servlet-context
 public final class Context implements AutoCloseable, ServletContext {
 	private final Logger logger;
 
@@ -48,9 +50,9 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	private final ServletClassLoader classLoader;
 
-	private final Map<String, Object> attributes = new HashMap<>();
+	private final Attributes attributes = new Attributes();
 
-	private final Map<String, String> initParameters = new HashMap<>();
+	private final InitParameters initParameters = new InitParameters();
 
 	private final Map<String, Registration> registrations = new HashMap<>();
 
@@ -97,6 +99,52 @@ public final class Context implements AutoCloseable, ServletContext {
 		this.logger = Logger.getLogger("ServletContext:" + contextPath);
 		this.classLoader = new ServletClassLoader(this, base, getClass().getClassLoader());
 	}
+
+
+	// 4.3 Initialization Parameters
+	// =============================
+	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#initialization-parameters
+	@Override
+	public String getInitParameter(final String name) {
+		return initParameters.getInitParameter(name);
+	}
+
+	@Override
+	public Enumeration<String> getInitParameterNames() {
+		return initParameters.getInitParameterNames();
+	}
+
+	@Override
+	public boolean setInitParameter(final String name, final String value) {
+		if (inited)
+			throw new IllegalStateException("Context inited");
+		return initParameters.setInitParameter(name, value);
+	}
+
+
+	// 4.5. Context Attributes
+	// =======================
+	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#context-attributes
+	@Override
+	public Object getAttribute(final String name) {
+		return attributes.getAttribute(name);
+	}
+
+	@Override
+	public Enumeration<String> getAttributeNames() {
+		return attributes.getAttributeNames();
+	}
+
+	@Override
+	public void setAttribute(final String name, final Object object) {
+		attributes.setAttribute(name, object);
+	}
+
+	@Override
+	public void removeAttribute(final String name) {
+		attributes.removeAttribute(name);
+	}
+
 
 	public void init() {
 		if (inited)
@@ -425,48 +473,6 @@ public final class Context implements AutoCloseable, ServletContext {
 	@Override
 	public String getServerInfo() {
 		return "myrservlet/0.2";
-	}
-
-	@Override
-	public String getInitParameter(final String name) {
-		return initParameters.get(name);
-	}
-
-	@Override
-	public Enumeration<String> getInitParameterNames() {
-		return Collections.enumeration(initParameters.keySet());
-	}
-
-	@Override
-	public boolean setInitParameter(final String name, final String value) {
-		Objects.requireNonNull(name);
-		if (inited)
-			throw new IllegalStateException("Context inited");
-		final String oldValue = initParameters.put(name, value);
-		return !Objects.equals(value, oldValue);
-	}
-
-	@Override
-	public Object getAttribute(final String name) {
-		return attributes.get(name);
-	}
-
-	@Override
-	public Enumeration<String> getAttributeNames() {
-		return Collections.enumeration(attributes.keySet());
-	}
-
-	@Override
-	public void setAttribute(final String name, final Object object) {
-		if (object == null)
-			attributes.remove(name);
-		else
-			attributes.put(name, object);
-	}
-
-	@Override
-	public void removeAttribute(final String name) {
-		attributes.remove(name);
 	}
 
 	@Override
