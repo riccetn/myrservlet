@@ -3,18 +3,20 @@ package se.narstrom.myr.http.v1;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
-import se.narstrom.myr.http.HttpResponse;
+import se.narstrom.myr.MappingCollection;
 import se.narstrom.myr.http.semantics.FieldValue;
 import se.narstrom.myr.http.semantics.Token;
+import se.narstrom.myr.servlet.Response;
 
-public final class Http1Response implements HttpResponse {
+public final class Http1Response extends Response {
 	private final HashMap<Token, ArrayList<FieldValue>> headerFields = new HashMap<>();
 
 	private final OutputStream socketOutputStream;
@@ -44,11 +46,13 @@ public final class Http1Response implements HttpResponse {
 
 	@Override
 	public void close() throws IOException {
+		flushBuffer();
+		if (outputStream != null)
+			outputStream.close();
 		commit();
 		state = State.CLOSED;
 	}
 
-	@Override
 	public void commit() throws IOException {
 		if (state != State.OPEN)
 			return;
@@ -65,12 +69,7 @@ public final class Http1Response implements HttpResponse {
 	}
 
 	@Override
-	public Map<String, List<String>> getHeaders() {
-		return headerFields.entrySet().stream().collect(Collectors.toUnmodifiableMap(entry -> entry.getKey().toString(), entry -> entry.getValue().stream().map(FieldValue::toString).toList()));
-	}
-
-	@Override
-	public ServletOutputStream getOutputStream() throws IOException {
+	protected ServletOutputStream getRealOutputStream() throws IOException {
 		final List<FieldValue> contentLength = headerFields.get(new Token("content-length"));
 		if (contentLength != null) {
 			long length = -1L;
@@ -101,11 +100,6 @@ public final class Http1Response implements HttpResponse {
 	}
 
 	@Override
-	public boolean isClosed() {
-		return state == State.CLOSED;
-	}
-
-	@Override
 	public boolean isCommitted() {
 		return state == State.COMMITED || state == State.CLOSED;
 	}
@@ -116,6 +110,7 @@ public final class Http1Response implements HttpResponse {
 			throw new IllegalStateException("Response is already committed");
 		status = HttpServletResponse.SC_OK;
 		headerFields.clear();
+		super.reset();
 	}
 
 	@Override
@@ -134,6 +129,35 @@ public final class Http1Response implements HttpResponse {
 		if (isCommitted())
 			return;
 		this.status = status;
+	}
+
+	@Override
+	public boolean containsHeader(final String name) {
+		Objects.requireNonNull(name);
+		return headerFields.containsKey(new Token(name.toLowerCase()));
+	}
+
+	@Override
+	public String getHeader(final String name) {
+		Objects.requireNonNull(name);
+		final List<FieldValue> values = headerFields.get(new Token(name.toLowerCase()));
+		if (values == null)
+			return null;
+		return values.getFirst().toString();
+	}
+
+	@Override
+	public Collection<String> getHeaders(final String name) {
+		Objects.requireNonNull(name);
+		final List<FieldValue> values = headerFields.get(new Token(name.toLowerCase()));
+		if (values == null)
+			return null;
+		return new MappingCollection<>(values, FieldValue::toString);
+	}
+
+	@Override
+	public Collection<String> getHeaderNames() {
+		return new MappingCollection<>(headerFields.keySet(), Token::toString);
 	}
 
 	private enum State {

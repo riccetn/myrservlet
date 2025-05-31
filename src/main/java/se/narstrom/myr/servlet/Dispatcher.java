@@ -31,7 +31,7 @@ public final class Dispatcher implements RequestDispatcher {
 
 	public void request(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		logger.log(Level.INFO, "DISPATCH for servlet ''{0}, asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
-		dispatch(request, response);
+		dispatch(new DispatcherRequest(request), response);
 	}
 
 	@Override

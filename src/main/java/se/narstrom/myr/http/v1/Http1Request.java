@@ -6,12 +6,12 @@ import java.util.Objects;
 
 import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletInputStream;
-import se.narstrom.myr.http.HttpRequest;
 import se.narstrom.myr.http.semantics.Fields;
 import se.narstrom.myr.http.semantics.Method;
+import se.narstrom.myr.servlet.Request;
 import se.narstrom.myr.uri.Query;
 
-public final class Http1Request implements HttpRequest {
+public final class Http1Request extends Request {
 	private final Method method;
 
 	private final AbsolutePath requestUri;
@@ -123,6 +123,16 @@ public final class Http1Request implements HttpRequest {
 			return host;
 		else
 			return host.substring(0, colon);
+	}
+
+	@Override
+	public int getServerPort() {
+		final String host = getHeader("host");
+		final int colon = host.indexOf(':');
+		if (colon == -1)
+			return getLocalPort();
+		else
+			return Integer.parseInt(host.substring(colon + 1));
 	}
 
 	@Override

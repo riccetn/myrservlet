@@ -8,24 +8,19 @@ import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
-import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.mime.MediaType;
 import se.narstrom.myr.util.Result;
 
-public final class MyrResponse implements HttpServletResponse {
-	private final HttpResponse httpResponse;
+public abstract class Response implements HttpServletResponse {
 
-	private final CommitingBufferedOutputStream commitingOutputStream;
+	private final BufferedOutputStream commitingOutputStream = new BufferedOutputStream(this);
 
 	private Context context;
 
@@ -35,11 +30,6 @@ public final class MyrResponse implements HttpServletResponse {
 
 	private Result<Charset, UnsupportedEncodingException> encoding = null;
 
-	public MyrResponse(final HttpResponse httpResponse) {
-		this.httpResponse = httpResponse;
-		this.commitingOutputStream = new CommitingBufferedOutputStream(httpResponse);
-	}
-
 	void setContext(final Context context) {
 		this.context = context;
 	}
@@ -48,7 +38,6 @@ public final class MyrResponse implements HttpServletResponse {
 		if (writer != null)
 			writer.flush();
 		commitingOutputStream.close();
-		httpResponse.close();
 	}
 
 	@Override
@@ -64,11 +53,6 @@ public final class MyrResponse implements HttpServletResponse {
 		}
 
 		addHeader("Set-Cookie", cookieString.toString());
-	}
-
-	@Override
-	public boolean containsHeader(final String name) {
-		return httpResponse.getHeaders().containsKey(name);
 	}
 
 	@Override
@@ -98,10 +82,12 @@ public final class MyrResponse implements HttpServletResponse {
 	@Override
 	public ServletOutputStream getOutputStream() throws IOException {
 		if (writer != null)
-			throw new IllegalStateException("Stream of writer, not both");
+			throw new IllegalStateException("Stream or writer, not both");
 		outputStreamReturned = true;
 		return commitingOutputStream;
 	}
+
+	protected abstract ServletOutputStream getRealOutputStream() throws IOException;
 
 	@Override
 	public PrintWriter getWriter() throws IOException {
@@ -205,7 +191,7 @@ public final class MyrResponse implements HttpServletResponse {
 
 	@Override
 	public void setBufferSize(final int size) {
-		if (httpResponse.isCommitted())
+		if (isCommitted())
 			throw new IllegalStateException();
 		commitingOutputStream.setBufferSize(size);
 	}
@@ -224,24 +210,18 @@ public final class MyrResponse implements HttpServletResponse {
 
 	@Override
 	public void resetBuffer() {
-		if (httpResponse.isCommitted())
+		if (isCommitted())
 			throw new IllegalStateException("Response has already been committed");
 		commitingOutputStream.resetBuffer();
-	}
-
-	@Override
-	public boolean isCommitted() {
-		return httpResponse.isCommitted();
 	}
 
 	@Override
 	public void reset() {
-		if (httpResponse.isCommitted())
+		if (isCommitted())
 			throw new IllegalStateException("Response has already been committed");
 		commitingOutputStream.resetBuffer();
 		outputStreamReturned = false;
 		writer = null;
-		httpResponse.reset();
 	}
 
 	@Override
@@ -293,16 +273,6 @@ public final class MyrResponse implements HttpServletResponse {
 	}
 
 	@Override
-	public void setHeader(final String name, final String value) {
-		httpResponse.setHeader(name, value);
-	}
-
-	@Override
-	public void addHeader(final String name, final String value) {
-		httpResponse.addHeader(name, value);
-	}
-
-	@Override
 	public void setIntHeader(final String name, final int value) {
 		setHeader(name, Integer.toString(value));
 	}
@@ -310,40 +280,5 @@ public final class MyrResponse implements HttpServletResponse {
 	@Override
 	public void addIntHeader(final String name, final int value) {
 		addHeader(name, Integer.toString(value));
-	}
-
-	@Override
-	public void setStatus(final int status) {
-		if (status < 200 || status >= 600)
-			throw new IllegalArgumentException("Invalid status code: " + status);
-		httpResponse.setStatus(status);
-	}
-
-	@Override
-	public int getStatus() {
-		return httpResponse.getStatus();
-	}
-
-	@Override
-	public String getHeader(final String name) {
-		final List<String> values = httpResponse.getHeaders().get(name);
-		if(values == null)
-			return null;
-		else
-			return values.getFirst();
-	}
-
-	@Override
-	public Collection<String> getHeaders(final String name) {
-		final List<String> values = httpResponse.getHeaders().get(name);
-		if(values == null)
-			return Collections.emptySet();
-		else
-			return Collections.unmodifiableCollection(values);
-	}
-
-	@Override
-	public Collection<String> getHeaderNames() {
-		throw new UnsupportedOperationException();
 	}
 }
