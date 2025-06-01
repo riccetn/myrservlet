@@ -27,10 +27,12 @@ import jakarta.servlet.DispatcherType;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
@@ -40,16 +42,13 @@ import se.narstrom.myr.mime.MediaType;
 import se.narstrom.myr.util.Result;
 
 // https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#the-request
-public abstract class Request implements HttpServletRequest {
+public class Request extends HttpServletRequestWrapper {
 	private final Logger logger = Logger.getLogger(getClass().getName());
-
-	private boolean inputStreamReturned = false;
 
 	private Context context;
 
-	private BufferedReader reader = null;
-
-	void setContext(final Context context) {
+	public Request(final HttpServletRequest request, final Context context) {
+		super(request);
 		this.context = context;
 	}
 
@@ -367,6 +366,39 @@ public abstract class Request implements HttpServletRequest {
 	}
 
 
+	// Stream and Reader
+	private BufferedReader reader = null;
+
+	private boolean streamReturned;
+
+	private boolean readerReturned;
+
+	@Override
+	public ServletInputStream getInputStream() throws IOException {
+		if (readerReturned)
+			throw new IllegalStateException("Stream or reader but not both");
+		streamReturned = true;
+		return super.getInputStream();
+	}
+
+	@Override
+	public BufferedReader getReader() throws IOException {
+		if (streamReturned)
+			throw new IllegalStateException("Stream or reader but not both");
+		readerReturned = true;
+		if (reader == null) {
+			maybeInitCharacterEncoding();
+
+			Charset charset = encoding.value();
+			if (charset == null)
+				charset = Charset.defaultCharset();
+
+			reader = new BufferedReader(new InputStreamReader(super.getInputStream(), charset));
+		}
+		return reader;
+	}
+
+
 	@Override
 	public int getContentLength() {
 		return getIntHeader("content-length");
@@ -387,20 +419,6 @@ public abstract class Request implements HttpServletRequest {
 	@Override
 	public String getContentType() {
 		return getHeader("content-type");
-	}
-
-	@Override
-	public BufferedReader getReader() throws IOException {
-		if (reader == null) {
-			maybeInitCharacterEncoding();
-
-			Charset charset = encoding.value();
-			if (charset == null)
-				charset = Charset.defaultCharset();
-
-			reader = new BufferedReader(new InputStreamReader(getInputStream(), charset));
-		}
-		return reader;
 	}
 
 	@Override

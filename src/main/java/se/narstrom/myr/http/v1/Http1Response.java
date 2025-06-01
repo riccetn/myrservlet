@@ -14,9 +14,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import se.narstrom.myr.MappingCollection;
 import se.narstrom.myr.http.semantics.FieldValue;
 import se.narstrom.myr.http.semantics.Token;
-import se.narstrom.myr.servlet.Response;
+import se.narstrom.myr.servlet.StubResponse;
 
-public final class Http1Response extends Response {
+public final class Http1Response extends StubResponse {
 	private final HashMap<Token, ArrayList<FieldValue>> headerFields = new HashMap<>();
 
 	private final OutputStream socketOutputStream;
@@ -44,9 +44,7 @@ public final class Http1Response extends Response {
 		headerFields.computeIfAbsent(name, _ -> new ArrayList<>()).add(value);
 	}
 
-	@Override
 	public void close() throws IOException {
-		flushBuffer();
 		if (outputStream != null)
 			outputStream.close();
 		commit();
@@ -69,7 +67,7 @@ public final class Http1Response extends Response {
 	}
 
 	@Override
-	protected ServletOutputStream getRealOutputStream() throws IOException {
+	public ServletOutputStream getOutputStream() throws IOException {
 		final List<FieldValue> contentLength = headerFields.get(new Token("content-length"));
 		if (contentLength != null) {
 			long length = -1L;

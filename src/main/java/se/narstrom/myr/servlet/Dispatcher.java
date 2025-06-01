@@ -31,7 +31,9 @@ public final class Dispatcher implements RequestDispatcher {
 
 	public void request(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		logger.log(Level.INFO, "DISPATCH for servlet ''{0}, asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
-		dispatch(new DispatcherRequest(request), response);
+		final Response resp = new Response(response, context);
+		dispatch(new Request(request, context), resp);
+		resp.close();
 	}
 
 	@Override
@@ -48,7 +50,7 @@ public final class Dispatcher implements RequestDispatcher {
 	}
 
 	public void error(final HttpServletRequest request, final HttpServletResponse response, final Throwable throwable, final int errorCode) throws ServletException, IOException {
-		final ErrorRequest errorRequest = new ErrorRequest(request);
+		final ErrorRequest errorRequest = new ErrorRequest(request, context);
 		errorRequest.setAttribute(ERROR_EXCEPTION, throwable);
 		errorRequest.setAttribute(ERROR_EXCEPTION_TYPE, throwable.getClass());
 		errorRequest.setAttribute(ERROR_MESSAGE, throwable.getMessage());
@@ -57,9 +59,13 @@ public final class Dispatcher implements RequestDispatcher {
 		errorRequest.setAttribute(ERROR_REQUEST_URI, request.getRequestURI());
 		errorRequest.setAttribute(ERROR_STATUS_CODE, errorCode);
 		errorRequest.setAttribute(ERROR_SERVLET_NAME, "TODO: Get servlet name");
-		response.reset();
-		response.setStatus(errorCode);
-		dispatch(errorRequest, response);
+
+		final Response errorResponse = new Response(response, context);
+		errorResponse.reset();
+		errorResponse.setStatus(errorCode);
+
+		dispatch(errorRequest, errorResponse);
+		errorResponse.close();
 	}
 
 	private void dispatch(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {

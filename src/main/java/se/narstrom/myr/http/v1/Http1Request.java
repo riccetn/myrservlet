@@ -8,10 +8,10 @@ import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletInputStream;
 import se.narstrom.myr.http.semantics.Fields;
 import se.narstrom.myr.http.semantics.Method;
-import se.narstrom.myr.servlet.Request;
+import se.narstrom.myr.servlet.StubRequest;
 import se.narstrom.myr.uri.Query;
 
-public final class Http1Request extends Request {
+public final class Http1Request extends StubRequest {
 	private final Method method;
 
 	private final AbsolutePath requestUri;

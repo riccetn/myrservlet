@@ -216,7 +216,7 @@ public final class Context implements AutoCloseable, ServletContext {
 				case UnavailableException _ -> handleError(request, response, HttpServletResponse.SC_NOT_FOUND, "Not Found");
 				case ServletException sex -> handleException(request, response, sex.getRootCause());
 				case FileNotFoundException _ -> handleError(request, response, HttpServletResponse.SC_NOT_FOUND, "Not Found");
-				default -> response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
+				default -> handleError(request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
 			}
 		} catch (final ServletException | IOException ex2) {
 			logger.log(Level.SEVERE, "Error in error-page dispatch", ex2);
@@ -228,12 +228,17 @@ public final class Context implements AutoCloseable, ServletContext {
 			final String path = errorMappings.get(status);
 
 			if (path == null) {
-				response.sendError(status, message);
+				final Response errorResponse = new Response(response, this);
+				errorResponse.reset();
+				errorResponse.setStatus(status);
+				errorResponse.setContentType("text/plain");
+				errorResponse.setContentLength(message.length());
+				errorResponse.getWriter().write(message);
+				errorResponse.flushBuffer();
 				return;
 			}
 
-			response.setStatus(status);
-			getRequestDispatcher(path).request(request, response);
+			getRequestDispatcher(path).error(request, response, null, status);
 		} catch (final ServletException | IOException ex) {
 			logger.log(Level.SEVERE, "Error in error-page dispatch", ex);
 		}

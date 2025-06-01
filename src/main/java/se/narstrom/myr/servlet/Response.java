@@ -15,14 +15,15 @@ import java.util.Map;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponseWrapper;
 import se.narstrom.myr.mime.MediaType;
 import se.narstrom.myr.util.Result;
 
-public abstract class Response implements HttpServletResponse {
+public class Response extends HttpServletResponseWrapper {
 
-	private final BufferedOutputStream commitingOutputStream = new BufferedOutputStream(this);
+	private final BufferedOutputStream commitingOutputStream;
 
-	private Context context;
+	private final Context context;
 
 	private boolean outputStreamReturned = false;
 
@@ -30,7 +31,9 @@ public abstract class Response implements HttpServletResponse {
 
 	private Result<Charset, UnsupportedEncodingException> encoding = null;
 
-	void setContext(final Context context) {
+	public Response(final HttpServletResponse response, final Context context) {
+		super(response);
+		this.commitingOutputStream = new BufferedOutputStream(response);
 		this.context = context;
 	}
 
@@ -86,8 +89,6 @@ public abstract class Response implements HttpServletResponse {
 		outputStreamReturned = true;
 		return commitingOutputStream;
 	}
-
-	protected abstract ServletOutputStream getRealOutputStream() throws IOException;
 
 	@Override
 	public PrintWriter getWriter() throws IOException {
