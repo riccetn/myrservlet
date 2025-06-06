@@ -39,6 +39,7 @@ import jakarta.servlet.UnavailableException;
 import jakarta.servlet.descriptor.JspConfigDescriptor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.MappingMatch;
 import se.narstrom.myr.http.v1.RequestTarget;
 
 // 4. Servlet Context
@@ -410,7 +411,11 @@ public final class Context implements AutoCloseable, ServletContext {
 		uri = canonicalizedPath.toString();
 
 		String servletName = null;
+		Mapping mapping = null;
+
 		servletName = exactMappings.get(uri);
+		if (servletName != null)
+			mapping = new Mapping(MappingMatch.EXACT, uri, uri, uri.length(), servletName);
 
 		if (servletName == null) {
 			assert uri.charAt(0) == '/';
@@ -421,8 +426,10 @@ public final class Context implements AutoCloseable, ServletContext {
 
 			while (!path.isEmpty()) {
 				servletName = pathMappings.get(path);
-				if (servletName == null)
+				if (servletName != null) {
+					mapping = new Mapping(MappingMatch.PATH, path + "/*", uri, path.length(), servletName);
 					break;
+				}
 				final int slash = path.lastIndexOf('/');
 				path = path.substring(0, slash);
 			}
@@ -432,12 +439,18 @@ public final class Context implements AutoCloseable, ServletContext {
 			final int slash = uri.lastIndexOf('/');
 			final int dot = uri.lastIndexOf('.');
 			if (slash < dot) {
-				servletName = extentionMappings.get(uri.substring(dot + 1));
+				final String extension = uri.substring(dot + 1);
+				servletName = extentionMappings.get(extension);
+				if (servletName != null) {
+					mapping = new Mapping(MappingMatch.EXTENSION, "*." + extension, uri, slash, servletName);
+				}
 			}
 		}
 
-		if (servletName == null)
+		if (servletName == null) {
 			servletName = defaultServlet;
+			mapping = new Mapping(MappingMatch.DEFAULT, "/", uri, 0, servletName);
+		}
 
 		if (servletName == null) {
 			logger.log(Level.WARNING, "No servlet found for {0}", uri);
@@ -446,7 +459,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 		logger.log(Level.INFO, "Creating Dispatcher for uri {0} to servlet {1}", new Object[] { uri, servletName });
 
-		return getNamedDispatcher(servletName);
+		return new Dispatcher(this, mapping, registrations.get(servletName));
 	}
 
 	@Override
@@ -455,7 +468,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		if (registration == null)
 			return null;
 		else
-			return new Dispatcher(this, registrations.get(name));
+			return new Dispatcher(this, null, registrations.get(name));
 	}
 
 	@Override

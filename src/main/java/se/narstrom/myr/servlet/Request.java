@@ -31,6 +31,7 @@ import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletMapping;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
@@ -45,11 +46,12 @@ import se.narstrom.myr.util.Result;
 public class Request extends HttpServletRequestWrapper {
 	private final Logger logger = Logger.getLogger(getClass().getName());
 
-	private Context context;
+	private final Dispatcher dispatcher;
 
-	public Request(final HttpServletRequest request, final Context context) {
+
+	public Request(final HttpServletRequest request, final Dispatcher dispatcher) {
 		super(request);
-		this.context = context;
+		this.dispatcher = dispatcher;
 	}
 
 
@@ -180,12 +182,15 @@ public class Request extends HttpServletRequestWrapper {
 
 	@Override
 	public String getServletPath() {
-		return "";
+		return dispatcher.getMapping().getMatchValue();
 	}
 
 	@Override
 	public String getPathInfo() {
-		throw new UnsupportedOperationException();
+		final String pathInfo = dispatcher.getMapping().getPathInfo();
+		if (pathInfo.isEmpty())
+			return null;
+		return pathInfo;
 	}
 
 
@@ -194,7 +199,7 @@ public class Request extends HttpServletRequestWrapper {
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#request-uri-path-processing
 	@Override
 	public String getPathTranslated() {
-		return context.getRealPath(getPathInfo());
+		return dispatcher.getContext().getRealPath(getPathInfo());
 	}
 
 
@@ -366,6 +371,15 @@ public class Request extends HttpServletRequestWrapper {
 	}
 
 
+	// 12.3.1. Runtime Discovery of Servlet Mappings
+	// =============================================
+	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#runtime-discovery-of-servlet-mappings
+	@Override
+	public HttpServletMapping getHttpServletMapping() {
+		return dispatcher.getMapping();
+	}
+
+
 	// Stream and Reader
 	private BufferedReader reader = null;
 
@@ -430,7 +444,7 @@ public class Request extends HttpServletRequestWrapper {
 
 	@Override
 	public Context getServletContext() {
-		return context;
+		return dispatcher.getContext();
 	}
 
 	@Override

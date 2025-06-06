@@ -12,12 +12,12 @@ import java.util.Objects;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
 import se.narstrom.myr.MappingCollection;
+import se.narstrom.myr.http.semantics.FieldName;
 import se.narstrom.myr.http.semantics.FieldValue;
-import se.narstrom.myr.http.semantics.Token;
 import se.narstrom.myr.servlet.StubResponse;
 
 public final class Http1Response extends StubResponse {
-	private final HashMap<Token, ArrayList<FieldValue>> headerFields = new HashMap<>();
+	private final HashMap<FieldName, ArrayList<FieldValue>> headerFields = new HashMap<>();
 
 	private final OutputStream socketOutputStream;
 
@@ -38,7 +38,7 @@ public final class Http1Response extends StubResponse {
 		if (nameString == null || valueString == null)
 			return;
 
-		final Token name = new Token(nameString);
+		final FieldName name = new FieldName(nameString);
 		final FieldValue value = new FieldValue(valueString);
 
 		headerFields.computeIfAbsent(name, _ -> new ArrayList<>()).add(value);
@@ -57,8 +57,8 @@ public final class Http1Response extends StubResponse {
 		state = State.COMMITED;
 
 		socketOutputStream.write(("HTTP/1.1 " + status + "\r\n").getBytes());
-		for (final Map.Entry<Token, ArrayList<FieldValue>> entry : headerFields.entrySet()) {
-			final Token name = entry.getKey();
+		for (final Map.Entry<FieldName, ArrayList<FieldValue>> entry : headerFields.entrySet()) {
+			final FieldName name = entry.getKey();
 			final List<FieldValue> values = entry.getValue();
 			for (final FieldValue value : values)
 				socketOutputStream.write((name.toString() + ": " + value.toString() + "\r\n").getBytes());
@@ -68,7 +68,7 @@ public final class Http1Response extends StubResponse {
 
 	@Override
 	public ServletOutputStream getOutputStream() throws IOException {
-		final List<FieldValue> contentLength = headerFields.get(new Token("content-length"));
+		final List<FieldValue> contentLength = headerFields.get(new FieldName("content-length"));
 		if (contentLength != null) {
 			long length = -1L;
 			try {
@@ -76,14 +76,14 @@ public final class Http1Response extends StubResponse {
 			} catch (final NumberFormatException _) {
 			}
 			if (length >= 0) {
-				headerFields.remove(new Token("transfer-encoding"));
+				headerFields.remove(new FieldName("transfer-encoding"));
 				outputStream = new LengthOutputStream(socketOutputStream, length);
 			}
 		}
 
 		if (outputStream == null) {
-			headerFields.put(new Token("transfer-encoding"), new ArrayList<>(List.of(new FieldValue("chunked"))));
-			headerFields.remove(new Token("content-length"));
+			headerFields.put(new FieldName("transfer-encoding"), new ArrayList<>(List.of(new FieldValue("chunked"))));
+			headerFields.remove(new FieldName("content-length"));
 			outputStream = new ChunkedOutputStream(socketOutputStream);
 		}
 
@@ -113,7 +113,7 @@ public final class Http1Response extends StubResponse {
 
 	@Override
 	public void setHeader(final String nameString, final String valueString) {
-		final Token name = new Token(nameString.toLowerCase());
+		final FieldName name = new FieldName(nameString);
 		if (valueString != null) {
 			final FieldValue value = new FieldValue(valueString);
 			headerFields.put(name, new ArrayList<>(List.of(value)));
@@ -132,13 +132,13 @@ public final class Http1Response extends StubResponse {
 	@Override
 	public boolean containsHeader(final String name) {
 		Objects.requireNonNull(name);
-		return headerFields.containsKey(new Token(name.toLowerCase()));
+		return headerFields.containsKey(new FieldName(name));
 	}
 
 	@Override
 	public String getHeader(final String name) {
 		Objects.requireNonNull(name);
-		final List<FieldValue> values = headerFields.get(new Token(name.toLowerCase()));
+		final List<FieldValue> values = headerFields.get(new FieldName(name));
 		if (values == null)
 			return null;
 		return values.getFirst().toString();
@@ -147,7 +147,7 @@ public final class Http1Response extends StubResponse {
 	@Override
 	public Collection<String> getHeaders(final String name) {
 		Objects.requireNonNull(name);
-		final List<FieldValue> values = headerFields.get(new Token(name.toLowerCase()));
+		final List<FieldValue> values = headerFields.get(new FieldName(name));
 		if (values == null)
 			return null;
 		return new MappingCollection<>(values, FieldValue::toString);
@@ -155,7 +155,7 @@ public final class Http1Response extends StubResponse {
 
 	@Override
 	public Collection<String> getHeaderNames() {
-		return new MappingCollection<>(headerFields.keySet(), Token::toString);
+		return new MappingCollection<>(headerFields.keySet(), FieldName::toString);
 	}
 
 	private enum State {

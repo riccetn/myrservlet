@@ -11,7 +11,7 @@ import java.util.Objects;
 
 import se.narstrom.myr.MappingCollection;
 
-public class Fields {
+public final class Fields {
 	private final Map<FieldName, List<FieldValue>> map;
 
 	public Fields(final List<Field> fields) {

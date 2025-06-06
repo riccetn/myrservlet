@@ -18,10 +18,13 @@ public final class Dispatcher implements RequestDispatcher {
 
 	private final Context context;
 
+	private final Mapping mapping;
+
 	private final Registration registration;
 
-	public Dispatcher(final Context context, final Registration registration) {
+	public Dispatcher(final Context context, final Mapping mapping, final Registration registration) {
 		this.context = context;
+		this.mapping = mapping;
 		this.registration = registration;
 	}
 
@@ -29,11 +32,20 @@ public final class Dispatcher implements RequestDispatcher {
 		return registration;
 	}
 
+	public Context getContext() {
+		return context;
+	}
+
+	public Mapping getMapping() {
+		return mapping;
+	}
+
 	public void request(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		logger.log(Level.INFO, "DISPATCH for servlet ''{0}, asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
-		final Response resp = new Response(response, context);
-		dispatch(new Request(request, context), resp);
-		resp.close();
+		final Request wrappedRequest = new Request(request, this);
+		final Response wrappedResponse = new Response(response, context);
+		dispatch(wrappedRequest, wrappedResponse);
+		wrappedResponse.close();
 	}
 
 	@Override
@@ -50,7 +62,7 @@ public final class Dispatcher implements RequestDispatcher {
 	}
 
 	public void error(final HttpServletRequest request, final HttpServletResponse response, final Throwable throwable, final int errorCode) throws ServletException, IOException {
-		final ErrorRequest errorRequest = new ErrorRequest(request, context);
+		final ErrorRequest errorRequest = new ErrorRequest(request, this);
 		errorRequest.setAttribute(ERROR_EXCEPTION, throwable);
 		errorRequest.setAttribute(ERROR_EXCEPTION_TYPE, throwable.getClass());
 		errorRequest.setAttribute(ERROR_MESSAGE, throwable.getMessage());
