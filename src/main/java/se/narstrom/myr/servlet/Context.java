@@ -415,7 +415,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 		servletName = exactMappings.get(uri);
 		if (servletName != null)
-			mapping = new Mapping(MappingMatch.EXACT, uri, uri, uri.length(), servletName);
+			mapping = new Mapping(MappingMatch.EXACT, uri, canonicalizedPath, uri, "", servletName);
 
 		if (servletName == null) {
 			assert uri.charAt(0) == '/';
@@ -427,11 +427,18 @@ public final class Context implements AutoCloseable, ServletContext {
 			while (!path.isEmpty()) {
 				servletName = pathMappings.get(path);
 				if (servletName != null) {
-					mapping = new Mapping(MappingMatch.PATH, path + "/*", uri, path.length(), servletName);
+					mapping = new Mapping(MappingMatch.PATH, path + "/*", canonicalizedPath, path, uri.substring(path.length()), servletName);
 					break;
 				}
 				final int slash = path.lastIndexOf('/');
 				path = path.substring(0, slash);
+			}
+
+			if(servletName == null) {
+				servletName = pathMappings.get("");
+				if(servletName != null) {
+					mapping = new Mapping(MappingMatch.PATH, "/*", canonicalizedPath, "", uri, servletName);
+				}
 			}
 		}
 
@@ -442,14 +449,14 @@ public final class Context implements AutoCloseable, ServletContext {
 				final String extension = uri.substring(dot + 1);
 				servletName = extentionMappings.get(extension);
 				if (servletName != null) {
-					mapping = new Mapping(MappingMatch.EXTENSION, "*." + extension, uri, slash, servletName);
+					mapping = new Mapping(MappingMatch.EXTENSION, "*." + extension, canonicalizedPath, uri.substring(0, slash), uri.substring(slash), servletName);
 				}
 			}
 		}
 
 		if (servletName == null) {
 			servletName = defaultServlet;
-			mapping = new Mapping(MappingMatch.DEFAULT, "/", uri, 0, servletName);
+			mapping = new Mapping(MappingMatch.DEFAULT, "/", canonicalizedPath, uri, uri, servletName);
 		}
 
 		if (servletName == null) {

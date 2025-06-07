@@ -40,6 +40,7 @@ import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
 import se.narstrom.myr.http.cookie.CookieParser;
 import se.narstrom.myr.mime.MediaType;
+import se.narstrom.myr.uri.UrlEncoding;
 import se.narstrom.myr.util.Result;
 
 // https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#the-request
@@ -325,6 +326,9 @@ public class Request extends HttpServletRequestWrapper {
 	// 7. Sessions
 	// ===========
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#sessions
+	private boolean sessionIdInited = false;
+	private String sessionId = null;
+
 	private Session session = null;
 
 	@Override
@@ -340,7 +344,8 @@ public class Request extends HttpServletRequestWrapper {
 
 	@Override
 	public String getRequestedSessionId() {
-		throw new UnsupportedOperationException();
+		maybeInitSessionId();
+		return sessionId;
 	}
 
 	@Override
@@ -363,6 +368,21 @@ public class Request extends HttpServletRequestWrapper {
 	public boolean isRequestedSessionIdFromURL() {
 		// TODO: maybeInitSession();
 		return false;
+	}
+
+	private void maybeInitSessionId() {
+		if(sessionIdInited)
+			return;
+		sessionIdInited = true;
+
+		/* TODO: Try other methods to find the session id */
+
+		/* Path parameter */
+		final String parameterString = dispatcher.getMapping().getCanonicalizedPath().segments().getLast().parameters();
+		final Map<String, List<String>> parameters = UrlEncoding.parse(parameterString);
+		final List<String> jsessionid = parameters.get("jsessionid");
+		if(jsessionid != null && !jsessionid.isEmpty())
+			this.sessionId = jsessionid.getFirst();
 	}
 
 	private void maybeInitSession(boolean create) {

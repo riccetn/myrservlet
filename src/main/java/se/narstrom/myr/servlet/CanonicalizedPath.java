@@ -40,7 +40,7 @@ public record CanonicalizedPath(List<CanonicalizedSegment> segments) {
 			final String segmentParameters;
 			if (semi != -1) {
 				segmentName = segmentValue.substring(0, semi);
-				segmentParameters = segmentValue.substring(semi);
+				segmentParameters = segmentValue.substring(semi+1);
 			} else {
 				segmentName = segmentValue;
 				segmentParameters = "";

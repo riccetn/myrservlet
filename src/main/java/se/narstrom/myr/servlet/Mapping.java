@@ -8,15 +8,17 @@ import jakarta.servlet.http.MappingMatch;
 public final class Mapping implements HttpServletMapping {
 	private MappingMatch mappingMatch;
 	private String pattern;
-	private String unencodedUri;
-	private int splitIndex;
+	private CanonicalizedPath canoicalizedPath;
+	private String servletPath;
+	private String pathInfo;
 	private String servletName;
 
-	public Mapping(final MappingMatch mappingMatch, final String pattern, final String unencodedUri, final int splitIndex, final String servletName) {
+	public Mapping(final MappingMatch mappingMatch, final String pattern, final CanonicalizedPath canonicalizedPath, final String servletPath, final String pathInfo, final String servletName) {
 		this.mappingMatch = Objects.requireNonNull(mappingMatch);
 		this.pattern = Objects.requireNonNull(pattern);
-		this.unencodedUri = Objects.requireNonNull(unencodedUri);
-		this.splitIndex = splitIndex;
+		this.canoicalizedPath = Objects.requireNonNull(canonicalizedPath);
+		this.servletPath = Objects.requireNonNull(servletPath);
+		this.pathInfo = pathInfo;
 		this.servletName = Objects.requireNonNull(servletName);
 	}
 
@@ -25,13 +27,17 @@ public final class Mapping implements HttpServletMapping {
 		return mappingMatch;
 	}
 
+	public CanonicalizedPath getCanonicalizedPath() {
+		return canoicalizedPath;
+	}
+
 	@Override
 	public String getMatchValue() {
-		return unencodedUri.substring(0, splitIndex);
+		return servletPath;
 	}
 
 	public String getPathInfo() {
-		return unencodedUri.substring(splitIndex);
+		return pathInfo;
 	}
 
 	@Override
