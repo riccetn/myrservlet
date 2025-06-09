@@ -22,6 +22,8 @@ public final class Dispatcher implements RequestDispatcher {
 
 	private final Registration registration;
 
+	private HttpServletResponse response = null;;
+
 	public Dispatcher(final Context context, final Mapping mapping, final Registration registration) {
 		this.context = context;
 		this.mapping = mapping;
@@ -38,6 +40,10 @@ public final class Dispatcher implements RequestDispatcher {
 
 	public Mapping getMapping() {
 		return mapping;
+	}
+
+	public HttpServletResponse getResponse() {
+		return this.response;
 	}
 
 	public void request(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
@@ -82,6 +88,8 @@ public final class Dispatcher implements RequestDispatcher {
 
 	private void dispatch(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		Thread.currentThread().setContextClassLoader(context.getClassLoader());
+
+		this.response = response;
 
 		try {
 			registration.init();

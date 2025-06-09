@@ -26,6 +26,7 @@ import se.narstrom.myr.net.Server;
 import se.narstrom.myr.servlet.Container;
 import se.narstrom.myr.servlet.Context;
 import se.narstrom.myr.servlet.Deployer;
+import se.narstrom.myr.servlet.session.SessionManager;
 
 public class MyrServletDeployableContainer implements DeployableContainer<MyrServletContainerConfiguration> {
 
@@ -36,6 +37,8 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 	private Server server;
 
 	private Container container;
+
+	private SessionManager sessionManager;
 
 	private Thread thread;
 
@@ -59,6 +62,8 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 			container = new Container();
 			server = new Server(new ServerSocket(8080), Executors.newVirtualThreadPerTaskExecutor(), new Http1WorkerFactory(container));
 			thread = new Thread(server);
+
+			sessionManager = new SessionManager();
 
 			container.init();
 			thread.start();
@@ -127,7 +132,7 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 
 		try {
 			Files.createDirectories(tempPath);
-		} catch(final IOException ex) {
+		} catch (final IOException ex) {
 			throw new DeploymentException("Could not create temp directory", ex);
 		}
 
@@ -135,7 +140,7 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 
 		final Context context;
 		try {
-			context = Deployer.deploy(contextPath, deploymentPath);
+			context = Deployer.deploy(contextPath, deploymentPath, sessionManager);
 			context.init();
 		} catch (final IOException ex) {
 			throw new DeploymentException(name, ex);

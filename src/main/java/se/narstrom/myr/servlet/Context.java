@@ -41,6 +41,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.MappingMatch;
 import se.narstrom.myr.http.v1.RequestTarget;
+import se.narstrom.myr.servlet.session.SessionManager;
 
 // 4. Servlet Context
 // https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#servlet-context
@@ -50,6 +51,8 @@ public final class Context implements AutoCloseable, ServletContext {
 	private final Path base;
 
 	private final ServletClassLoader classLoader;
+
+	private final SessionManager sessionManager;
 
 	private final Attributes attributes = new Attributes();
 
@@ -85,9 +88,10 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	private String contextName = "Root Context";
 
-	public Context(final String contextPath, final Path base) {
+	public Context(final String contextPath, final Path base, final SessionManager sessionManager) {
 		Objects.requireNonNull(contextPath);
 		Objects.requireNonNull(base);
+		Objects.requireNonNull(sessionManager);
 		if (!contextPath.isEmpty() && !contextPath.startsWith("/"))
 			throw new IllegalArgumentException("Invalid contextPath: " + contextPath);
 		if (contextPath.length() == 1)
@@ -97,6 +101,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 		this.contextPath = contextPath;
 		this.base = base.toAbsolutePath();
+		this.sessionManager = sessionManager;
 		this.logger = Logger.getLogger("ServletContext:" + contextPath);
 		this.classLoader = new ServletClassLoader(this, base, getClass().getClassLoader());
 	}
@@ -144,6 +149,14 @@ public final class Context implements AutoCloseable, ServletContext {
 	@Override
 	public void removeAttribute(final String name) {
 		attributes.removeAttribute(name);
+	}
+
+
+	// 7. Sessions
+	// ===========
+	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#sessions
+	public SessionManager getSessionManager() {
+		return sessionManager;
 	}
 
 
@@ -434,9 +447,9 @@ public final class Context implements AutoCloseable, ServletContext {
 				path = path.substring(0, slash);
 			}
 
-			if(servletName == null) {
+			if (servletName == null) {
 				servletName = pathMappings.get("");
-				if(servletName != null) {
+				if (servletName != null) {
 					mapping = new Mapping(MappingMatch.PATH, "/*", canonicalizedPath, "", uri, servletName);
 				}
 			}
@@ -490,6 +503,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public String getRealPath(String path) {
+		Objects.requireNonNull(path);
 		if (path.charAt(0) == '/')
 			path = path.substring(1);
 		return base.resolve(path).toAbsolutePath().toString();

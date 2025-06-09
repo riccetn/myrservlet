@@ -19,14 +19,15 @@ import ee.jakarta.xml.ns.jakartaee.UrlPatternType;
 import ee.jakarta.xml.ns.jakartaee.WebAppType;
 import jakarta.servlet.ServletRegistration;
 import jakarta.xml.bind.JAXB;
+import se.narstrom.myr.servlet.session.SessionManager;
 
 public final class Deployer {
 
-	public static final Context deploy(final String contextPath, final Path base) throws IOException {
+	public static final Context deploy(final String contextPath, final Path base, final SessionManager sessionManager) throws IOException {
 		final Path descriptor = base.resolve("WEB-INF/web.xml");
 		final WebAppType webApp = JAXB.unmarshal(descriptor.toFile(), WebAppType.class);
 
-		final Context context = new Context(contextPath, base);
+		final Context context = new Context(contextPath, base, sessionManager);
 
 		context.setServletContextName(webApp.getDisplayName().getFirst().getValue());
 

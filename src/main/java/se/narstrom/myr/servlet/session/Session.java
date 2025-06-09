@@ -1,11 +1,23 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.servlet.session;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Enumeration;
 
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpSession;
 
 public final class Session implements HttpSession {
+
+	private final String sessionId;
+
+	private Instant lastAccessedTime = Instant.now();
+
+	private Duration maxInactiveInterval = Duration.ofMinutes(30);
+
+	public Session(final String sessionId) {
+		this.sessionId = sessionId;
+	}
 
 	@Override
 	public long getCreationTime() {
@@ -14,12 +26,16 @@ public final class Session implements HttpSession {
 
 	@Override
 	public String getId() {
-		throw new UnsupportedOperationException();
+		return sessionId;
 	}
 
 	@Override
 	public long getLastAccessedTime() {
-		throw new UnsupportedOperationException();
+		return lastAccessedTime.toEpochMilli();
+	}
+
+	public void setLastAccessTime(final Long milli) {
+		this.lastAccessedTime = Instant.ofEpochMilli(milli);
 	}
 
 	@Override
@@ -28,13 +44,13 @@ public final class Session implements HttpSession {
 	}
 
 	@Override
-	public void setMaxInactiveInterval(int interval) {
-		throw new UnsupportedOperationException();
+	public void setMaxInactiveInterval(final int interval) {
+		this.maxInactiveInterval = Duration.ofSeconds(interval);
 	}
 
 	@Override
 	public int getMaxInactiveInterval() {
-		throw new UnsupportedOperationException();
+		return (int) this.maxInactiveInterval.toSeconds();
 	}
 
 	@Override

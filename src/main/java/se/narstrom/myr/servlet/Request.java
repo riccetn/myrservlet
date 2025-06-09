@@ -10,6 +10,7 @@ import java.nio.charset.UnsupportedCharsetException;
 import java.security.Principal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -40,6 +41,10 @@ import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
 import se.narstrom.myr.http.cookie.CookieParser;
 import se.narstrom.myr.mime.MediaType;
+import se.narstrom.myr.servlet.session.Session;
+import se.narstrom.myr.servlet.session.SessionIdSource;
+import se.narstrom.myr.servlet.session.SessionKey;
+import se.narstrom.myr.servlet.session.SessionManager;
 import se.narstrom.myr.uri.UrlEncoding;
 import se.narstrom.myr.util.Result;
 
@@ -144,7 +149,11 @@ public class Request extends HttpServletRequestWrapper {
 		final String dateString = getHeader(name);
 		if (dateString == null)
 			return -1L;
-		return LocalDateTime.parse(dateString, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
+		try {
+			return LocalDateTime.parse(dateString, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
+		} catch (final DateTimeParseException ex) {
+			throw new IllegalArgumentException(ex);
+		}
 	}
 
 	@Override
@@ -200,7 +209,10 @@ public class Request extends HttpServletRequestWrapper {
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#request-uri-path-processing
 	@Override
 	public String getPathTranslated() {
-		return dispatcher.getContext().getRealPath(getPathInfo());
+		final String pathInfo = getPathInfo();
+		if (pathInfo == null)
+			return null;
+		return dispatcher.getContext().getRealPath(pathInfo);
 	}
 
 
@@ -328,6 +340,7 @@ public class Request extends HttpServletRequestWrapper {
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#sessions
 	private boolean sessionIdInited = false;
 	private String sessionId = null;
+	private SessionIdSource sessionIdSource = SessionIdSource.NONE;
 
 	private Session session = null;
 
@@ -361,33 +374,64 @@ public class Request extends HttpServletRequestWrapper {
 
 	@Override
 	public boolean isRequestedSessionIdFromCookie() {
-		throw new UnsupportedOperationException();
+		maybeInitSessionId();
+		return sessionIdSource == SessionIdSource.COOKIE;
 	}
 
 	@Override
 	public boolean isRequestedSessionIdFromURL() {
-		// TODO: maybeInitSession();
-		return false;
+		maybeInitSessionId();
+		return sessionIdSource == SessionIdSource.URL_REWRITE;
 	}
 
 	private void maybeInitSessionId() {
-		if(sessionIdInited)
+		if (sessionIdInited)
 			return;
 		sessionIdInited = true;
 
 		/* TODO: Try other methods to find the session id */
 
-		/* Path parameter */
-		final String parameterString = dispatcher.getMapping().getCanonicalizedPath().segments().getLast().parameters();
-		final Map<String, List<String>> parameters = UrlEncoding.parse(parameterString);
-		final List<String> jsessionid = parameters.get("jsessionid");
-		if(jsessionid != null && !jsessionid.isEmpty())
-			this.sessionId = jsessionid.getFirst();
+		/* Cookie */
+		final Cookie[] cookies = getCookies();
+		if (cookies != null) {
+			for (final Cookie cookie : getCookies()) {
+				if (cookie.getName().equals("JSESSIONID")) {
+					this.sessionId = cookie.getValue();
+					this.sessionIdSource = SessionIdSource.COOKIE;
+				}
+			}
+		}
+
+		if (this.sessionId == null) {
+			/* Path parameter */
+			final String parameterString = dispatcher.getMapping().getCanonicalizedPath().segments().getLast().parameters();
+			final Map<String, List<String>> parameters = UrlEncoding.parse(parameterString);
+			final List<String> jsessionid = parameters.get("jsessionid");
+			if (jsessionid != null && !jsessionid.isEmpty()) {
+				this.sessionId = jsessionid.getFirst();
+				this.sessionIdSource = SessionIdSource.URL_REWRITE;
+			}
+		}
 	}
 
 	private void maybeInitSession(boolean create) {
-		if (session == null && create)
-			session = new Session();
+		if (session == null) {
+			maybeInitSessionId();
+			final SessionManager sessionManager = getServletContext().getSessionManager();
+			final String contextName = getServletContext().getServletContextName();
+			final String remoteAddr = getRemoteAddr();
+
+			if (sessionId != null) {
+				final SessionKey key = new SessionKey(contextName, remoteAddr, sessionId);
+				session = sessionManager.findSession(key);
+			}
+
+			final HttpServletResponse response = dispatcher.getResponse();
+			if (session == null && create && !response.isCommitted()) {
+				session = sessionManager.createSession(contextName, remoteAddr);
+				response.addCookie(new Cookie("JSESSIONID", session.getId()));
+			}
+		}
 	}
 
 
