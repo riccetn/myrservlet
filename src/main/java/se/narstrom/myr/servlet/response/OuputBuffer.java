@@ -1,4 +1,4 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.servlet.response;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -8,14 +8,14 @@ import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletResponse;
 
-public final class BufferedOutputStream extends ServletOutputStream {
+public final class OuputBuffer extends ServletOutputStream {
 	private final HttpServletResponse response;
 
 	private ByteBuffer buffer;
 
 	private OutputStream out;
 
-	public BufferedOutputStream(final HttpServletResponse response) {
+	public OuputBuffer(final HttpServletResponse response) {
 		this.buffer = ByteBuffer.allocate(1500);
 		this.response = response;
 	}

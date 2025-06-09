@@ -3,11 +3,9 @@ package se.narstrom.myr.servlet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import jakarta.servlet.MultipartConfigElement;
@@ -23,7 +21,7 @@ public final class Registration implements ServletRegistration.Dynamic {
 
 	private final String className;
 
-	private final Map<String, String> initParameters = new HashMap<>();
+	private final InitParameters initParameters = new InitParameters();
 
 	private final List<String> mappings = new ArrayList<>();
 
@@ -107,32 +105,22 @@ public final class Registration implements ServletRegistration.Dynamic {
 
 	@Override
 	public boolean setInitParameter(final String name, final String value) {
-		if (initParameters.containsKey(name))
-			return false;
-		initParameters.put(name, value);
-		return true;
+		return initParameters.setInitParameter(name, value);
 	}
 
 	@Override
 	public String getInitParameter(final String name) {
-		return initParameters.get(name);
+		return initParameters.getInitParameter(name);
 	}
 
 	@Override
-	public Set<String> setInitParameters(final Map<String, String> initParameters) {
-		final Set<String> successful = new HashSet<>();
-		for (final Map.Entry<String, String> initParameter : initParameters.entrySet()) {
-			final String name = initParameter.getKey();
-			final String value = initParameter.getValue();
-			if (setInitParameter(name, value))
-				successful.add(name);
-		}
-		return successful;
+	public Set<String> setInitParameters(final Map<String, String> parameters) {
+		return this.initParameters.setInitParameters(parameters);
 	}
 
 	@Override
 	public Map<String, String> getInitParameters() {
-		return Map.copyOf(initParameters);
+		return initParameters.getInitParameters();
 	}
 
 	@Override

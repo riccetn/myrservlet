@@ -41,6 +41,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.MappingMatch;
 import se.narstrom.myr.http.v1.RequestTarget;
+import se.narstrom.myr.servlet.response.Response;
 import se.narstrom.myr.servlet.session.SessionManager;
 
 // 4. Servlet Context
@@ -184,7 +185,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		}
 	}
 
-	void service(final HttpServletRequest request, final HttpServletResponse response) {
+	public void service(final HttpServletRequest request, final HttpServletResponse response) {
 		final String uri = request.getRequestURI();
 		if (!uri.startsWith(contextPath))
 			throw new IllegalArgumentException("This request is not for this context: " + uri + " is not in " + contextPath);
@@ -313,7 +314,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		localeEncodingMappings.put(locale, encoding);
 	}
 
-	Charset getLocaleEncoding(final Locale locale) {
+	public Charset getLocaleEncoding(final Locale locale) {
 		return localeEncodingMappings.get(locale);
 	}
 

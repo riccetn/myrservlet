@@ -1,4 +1,4 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.servlet.response;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -17,11 +17,12 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
 import se.narstrom.myr.mime.MediaType;
+import se.narstrom.myr.servlet.Context;
 import se.narstrom.myr.util.Result;
 
 public class Response extends HttpServletResponseWrapper {
 
-	private final BufferedOutputStream commitingOutputStream;
+	private final OuputBuffer buffer;
 
 	private final Context context;
 
@@ -33,14 +34,14 @@ public class Response extends HttpServletResponseWrapper {
 
 	public Response(final HttpServletResponse response, final Context context) {
 		super(response);
-		this.commitingOutputStream = new BufferedOutputStream(response);
+		this.buffer = new OuputBuffer(response);
 		this.context = context;
 	}
 
 	public void close() throws IOException {
 		if (writer != null)
 			writer.flush();
-		commitingOutputStream.close();
+		buffer.close();
 	}
 
 	@Override
@@ -87,7 +88,7 @@ public class Response extends HttpServletResponseWrapper {
 		if (writer != null)
 			throw new IllegalStateException("Stream or writer, not both");
 		outputStreamReturned = true;
-		return commitingOutputStream;
+		return buffer;
 	}
 
 	@Override
@@ -194,7 +195,7 @@ public class Response extends HttpServletResponseWrapper {
 	public void setBufferSize(final int size) {
 		if (isCommitted())
 			throw new IllegalStateException();
-		commitingOutputStream.setBufferSize(size);
+		buffer.setBufferSize(size);
 	}
 
 	@Override
@@ -206,21 +207,21 @@ public class Response extends HttpServletResponseWrapper {
 	public void flushBuffer() throws IOException {
 		if (writer != null)
 			writer.flush();
-		commitingOutputStream.flush();
+		buffer.flush();
 	}
 
 	@Override
 	public void resetBuffer() {
 		if (isCommitted())
 			throw new IllegalStateException("Response has already been committed");
-		commitingOutputStream.resetBuffer();
+		buffer.resetBuffer();
 	}
 
 	@Override
 	public void reset() {
 		if (isCommitted())
 			throw new IllegalStateException("Response has already been committed");
-		commitingOutputStream.resetBuffer();
+		buffer.resetBuffer();
 		outputStreamReturned = false;
 		writer = null;
 	}

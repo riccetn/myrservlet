@@ -1,4 +1,4 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.servlet.request;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -23,14 +23,11 @@ import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import jakarta.servlet.AsyncContext;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletInputStream;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletMapping;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,8 +36,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
-import se.narstrom.myr.http.cookie.CookieParser;
+import se.narstrom.myr.http.state.CookieParser;
 import se.narstrom.myr.mime.MediaType;
+import se.narstrom.myr.servlet.Attributes;
+import se.narstrom.myr.servlet.Context;
+import se.narstrom.myr.servlet.Dispatcher;
+import se.narstrom.myr.servlet.Parameters;
 import se.narstrom.myr.servlet.session.Session;
 import se.narstrom.myr.servlet.session.SessionIdSource;
 import se.narstrom.myr.servlet.session.SessionKey;
@@ -509,31 +510,6 @@ public class Request extends HttpServletRequestWrapper {
 	@Override
 	public Context getServletContext() {
 		return dispatcher.getContext();
-	}
-
-	@Override
-	public AsyncContext startAsync() throws IllegalStateException {
-		throw new IllegalStateException("Async not supported in this context");
-	}
-
-	@Override
-	public AsyncContext startAsync(final ServletRequest servletRequest, final ServletResponse servletResponse) throws IllegalStateException {
-		throw new IllegalStateException("Async not supported in this context");
-	}
-
-	@Override
-	public boolean isAsyncStarted() {
-		throw new IllegalStateException("Async not supported in this context");
-	}
-
-	@Override
-	public boolean isAsyncSupported() {
-		throw new IllegalStateException("Async not supported in this context");
-	}
-
-	@Override
-	public AsyncHandler getAsyncContext() {
-		throw new IllegalStateException("Async not supported in this context");
 	}
 
 	@Override

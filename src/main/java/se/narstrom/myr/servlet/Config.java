@@ -1,8 +1,6 @@
 package se.narstrom.myr.servlet;
 
-import java.util.Collections;
 import java.util.Enumeration;
-import java.util.Map;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -12,12 +10,12 @@ public final class Config implements ServletConfig {
 
 	private String servletName;
 
-	private final Map<String, String> initParameters;
+	private final InitParameters initParameters;
 
-	public Config(final ServletContext context, final String servletName, final Map<String, String> initParameters) {
+	public Config(final ServletContext context, final String servletName, final InitParameters initParameters) {
 		this.context = context;
 		this.servletName = servletName;
-		this.initParameters = Map.copyOf(initParameters);
+		this.initParameters = initParameters;
 	}
 
 	@Override
@@ -32,11 +30,11 @@ public final class Config implements ServletConfig {
 
 	@Override
 	public String getInitParameter(final String name) {
-		return initParameters.get(name);
+		return initParameters.getInitParameter(name);
 	}
 
 	@Override
 	public Enumeration<String> getInitParameterNames() {
-		return Collections.enumeration(initParameters.keySet());
+		return initParameters.getInitParameterNames();
 	}
 }

@@ -1,4 +1,4 @@
-package se.narstrom.myr.http.cookie;
+package se.narstrom.myr.http.state;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -1,4 +1,4 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.servlet.async;
 
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -12,6 +12,7 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import se.narstrom.myr.servlet.Context;
 
 public final class AsyncHandler implements AsyncContext {
 	private final Lock lock = new ReentrantLock();
@@ -172,7 +173,7 @@ public final class AsyncHandler implements AsyncContext {
 			};
 			this.context = (Context) context;
 			this.path = path;
-			this.request = new AsyncRequest(request, (Context) context, path);
+			// this.request = new AsyncRequest(request, (Context) context, path);
 			cond.signalAll();
 		} finally {
 			lock.unlock();

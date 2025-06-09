@@ -14,7 +14,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import se.narstrom.myr.MappingCollection;
 import se.narstrom.myr.http.semantics.FieldName;
 import se.narstrom.myr.http.semantics.FieldValue;
-import se.narstrom.myr.servlet.StubResponse;
+import se.narstrom.myr.servlet.response.StubResponse;
 
 public final class Http1Response extends StubResponse {
 	private final HashMap<FieldName, ArrayList<FieldValue>> headerFields = new HashMap<>();

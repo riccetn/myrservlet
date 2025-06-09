@@ -12,6 +12,8 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.UnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import se.narstrom.myr.servlet.request.Request;
+import se.narstrom.myr.servlet.response.Response;
 
 public final class Dispatcher implements RequestDispatcher {
 	private static final Logger logger = Logger.getLogger(Dispatcher.class.getName());

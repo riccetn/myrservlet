@@ -1,4 +1,4 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.servlet.response;
 
 import java.io.IOException;
 import java.io.PrintWriter;
