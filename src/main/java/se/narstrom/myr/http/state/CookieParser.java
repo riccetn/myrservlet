@@ -18,17 +18,11 @@ public final class CookieParser {
 				throw new IllegalArgumentException("Not a valid cookie string");
 
 			final String cookieName = cookiePair.substring(0, eq);
-			final String cookieValue = removeQuotes(cookiePair.substring(eq + 1));
+			final String cookieValue = cookiePair.substring(eq + 1);
 
 			cookies.add(new Cookie(Token.verifyToken(cookieName), verifyCookieValue(cookieValue)));
 		}
 		return List.copyOf(cookies);
-	}
-
-	public static String removeQuotes(final String str) {
-		if (str.startsWith("\"") && str.endsWith("\""))
-			return str.substring(0, str.length() - 1);
-		return str;
 	}
 
 	public static String verifyCookieValue(final String cookieValue) {
@@ -38,7 +32,13 @@ public final class CookieParser {
 	}
 
 	public static boolean isCookieValue(final String cookieValue) {
-		for (int i = 0; i < cookieValue.length(); ++i) {
+		int start = 0;
+		int end = cookieValue.length();
+		if (cookieValue.charAt(0) == '\"' && cookieValue.charAt(end - 1) == '\"') {
+			start += 1;
+			end -= 1;
+		}
+		for (int i = start; i < end; ++i) {
 			if (!isCookieOctet(cookieValue.charAt(i)))
 				return false;
 		}

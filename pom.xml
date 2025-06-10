@@ -119,6 +119,11 @@
 				<configuration>
 					<dependenciesToScan>jakarta.tck:servlet-tck-runtime</dependenciesToScan>
 					<includes>
+						<include>se/narstrom/myr/servlet/**/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/dispatchertype/DispatcherTypeTests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/genericservlet/GenericServletTests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/registration/RegistrationTests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/requestdispatcher/RequestDispatcherTests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servlet/ServletTests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletconfig/ServletConfigTests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletcontext/ServletContextTests.java</include>
@@ -126,8 +131,11 @@
 						<include>servlet/tck/api/jakarta_servlet/servletoutputstream/ServletOutputStreamTests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletrequest/ServletRequestTests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletrequest1/ServletRequest1Tests.java</include>
-						<!-- <include>servlet/tck/api/jakarta_servlet/servletrequest30/ServletRequest30Tests.java</include> -->
+<!--						<include>servlet/tck/api/jakarta_servlet/servletrequest30/ServletRequest30Tests.java</include>-->
 						<include>servlet/tck/api/jakarta_servlet/servletresponse/ServletResponseTests.java</include>
+						<include>servlet/tck/api/jakarta_servlet_http/cookie/CookieTests.java</include>
+						<include>servlet/tck/api/jakarta_servlet_http/httpservlet/HttpServletTests.java</include>
+						<include>servlet/tck/api/jakarta_servlet_http/httpservletrequest/HttpServletRequestTests.java</include>
 					</includes>
 				</configuration>
 			</plugin>

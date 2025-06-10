@@ -45,7 +45,13 @@ public class Response extends HttpServletResponseWrapper {
 	}
 
 	@Override
-	public void addCookie(final Cookie cookie) {
+	public void addCookie(Cookie cookie) {
+		if (cookie.getMaxAge() == 0) {
+			cookie = (Cookie) cookie.clone();
+			cookie.setMaxAge(-1);
+			cookie.setAttribute("Expires", "Thu, 1 Jan 1970 00:00:00 GMT");
+		}
+
 		final StringBuilder cookieString = new StringBuilder();
 		cookieString.append(cookie.getName()).append("=").append(cookie.getValue());
 
