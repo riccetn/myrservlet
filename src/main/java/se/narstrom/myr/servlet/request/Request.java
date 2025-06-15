@@ -193,7 +193,7 @@ public class Request extends HttpServletRequestWrapper {
 
 	@Override
 	public String getServletPath() {
-		return dispatcher.getMapping().getMatchValue();
+		return dispatcher.getMapping().getServletPath();
 	}
 
 	@Override
@@ -364,6 +364,11 @@ public class Request extends HttpServletRequestWrapper {
 
 	@Override
 	public String changeSessionId() {
+		maybeInitSession(false);
+		if (session == null)
+			throw new IllegalStateException("No session");
+
+		// TODO: Implement this
 		throw new UnsupportedOperationException();
 	}
 
@@ -559,8 +564,8 @@ public class Request extends HttpServletRequestWrapper {
 	}
 
 	@Override
-	public void login(String username, String password) throws ServletException {
-		throw new UnsupportedOperationException();
+	public void login(final String username, final String password) throws ServletException {
+		throw new ServletException("Authentication not implemented");
 	}
 
 	@Override

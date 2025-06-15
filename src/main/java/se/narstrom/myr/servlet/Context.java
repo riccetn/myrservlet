@@ -429,7 +429,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 		servletName = exactMappings.get(uri);
 		if (servletName != null)
-			mapping = new Mapping(MappingMatch.EXACT, uri, canonicalizedPath, uri, "", servletName);
+			mapping = new Mapping(MappingMatch.EXACT, uri, uri.substring(1), canonicalizedPath, uri, "", servletName);
 
 		if (servletName == null) {
 			assert uri.charAt(0) == '/';
@@ -441,7 +441,13 @@ public final class Context implements AutoCloseable, ServletContext {
 			while (!path.isEmpty()) {
 				servletName = pathMappings.get(path);
 				if (servletName != null) {
-					mapping = new Mapping(MappingMatch.PATH, path + "/*", canonicalizedPath, path, uri.substring(path.length()), servletName);
+					final String matchValue;
+					if (path.length() == uri.length())
+						matchValue = "";
+					else
+						matchValue = uri.substring(path.length() + 1);
+
+					mapping = new Mapping(MappingMatch.PATH, path + "/*", matchValue, canonicalizedPath, path, uri.substring(path.length()), servletName);
 					break;
 				}
 				final int slash = path.lastIndexOf('/');
@@ -451,7 +457,7 @@ public final class Context implements AutoCloseable, ServletContext {
 			if (servletName == null) {
 				servletName = pathMappings.get("");
 				if (servletName != null) {
-					mapping = new Mapping(MappingMatch.PATH, "/*", canonicalizedPath, "", uri, servletName);
+					mapping = new Mapping(MappingMatch.PATH, "/*", uri.substring(1), canonicalizedPath, "", uri, servletName);
 				}
 			}
 		}
@@ -463,14 +469,14 @@ public final class Context implements AutoCloseable, ServletContext {
 				final String extension = uri.substring(dot + 1);
 				servletName = extentionMappings.get(extension);
 				if (servletName != null) {
-					mapping = new Mapping(MappingMatch.EXTENSION, "*." + extension, canonicalizedPath, uri.substring(0, slash), uri.substring(slash), servletName);
+					mapping = new Mapping(MappingMatch.EXTENSION, "*." + extension, uri.substring(1, dot), canonicalizedPath, uri.substring(0, slash), uri.substring(slash), servletName);
 				}
 			}
 		}
 
 		if (servletName == null) {
 			servletName = defaultServlet;
-			mapping = new Mapping(MappingMatch.DEFAULT, "/", canonicalizedPath, uri, uri, servletName);
+			mapping = new Mapping(MappingMatch.DEFAULT, "/", "", canonicalizedPath, uri, uri, servletName);
 		}
 
 		if (servletName == null) {

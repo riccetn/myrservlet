@@ -60,7 +60,7 @@ public final class Dispatcher implements RequestDispatcher {
 	public void forward(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
 		logger.log(Level.INFO, "FORWARD to servlet ''{0}''", registration.getName());
 		response.reset();
-		dispatch(new ForwardRequest((HttpServletRequest) request), (HttpServletResponse) response);
+		dispatch(new ForwardRequest((HttpServletRequest) request, this), (HttpServletResponse) response);
 	}
 
 	@Override
