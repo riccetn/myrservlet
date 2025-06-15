@@ -266,7 +266,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		}
 	}
 
-	boolean addMapping(final String pattern, final String name) {
+	public boolean addMapping(final String pattern, final String name) {
 		if (pattern.startsWith("/") && pattern.endsWith("/*")) {
 			final String path = pattern.substring(0, pattern.length() - 2);
 			if (pathMappings.containsKey(path))
@@ -300,15 +300,15 @@ public final class Context implements AutoCloseable, ServletContext {
 		return true;
 	}
 
-	void addErrorPage(final int errorCode, final String path) {
+	public void addErrorPage(final int errorCode, final String path) {
 		this.errorMappings.put(errorCode, path);
 	}
 
-	void addExceptionPage(final String exceptionClassName, final String path) {
+	public void addExceptionPage(final String exceptionClassName, final String path) {
 		this.exceptionMappings.put(exceptionClassName, path);
 	}
 
-	void addLocaleEncodingMapping(final Locale locale, final Charset encoding) {
+	public void addLocaleEncodingMapping(final Locale locale, final Charset encoding) {
 		Objects.requireNonNull(locale);
 		Objects.requireNonNull(encoding);
 		localeEncodingMappings.put(locale, encoding);
@@ -318,11 +318,11 @@ public final class Context implements AutoCloseable, ServletContext {
 		return localeEncodingMappings.get(locale);
 	}
 
-	void addMimeTypeMapping(final String extension, final String mediaType) {
+	public void addMimeTypeMapping(final String extension, final String mediaType) {
 		mimeTypeMappings.put(extension, mediaType);
 	}
 
-	void addServletNameFilterMapping(final String servletName, final boolean isMatchAfter, final String filterName) {
+	public void addServletNameFilterMapping(final String servletName, final boolean isMatchAfter, final String filterName) {
 		final List<String> mappings = servletNameFilterMappings.computeIfAbsent(servletName, _ -> new ArrayList<>());
 		if (isMatchAfter)
 			mappings.addLast(filterName);
@@ -526,7 +526,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		return contextName;
 	}
 
-	void setServletContextName(final String name) {
+	public void setServletContextName(final String name) {
 		Objects.requireNonNull(name);
 		if (inited)
 			throw new IllegalStateException("Context already inited");

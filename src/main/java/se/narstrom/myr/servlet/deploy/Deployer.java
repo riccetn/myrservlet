@@ -1,8 +1,13 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.servlet.deploy;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Locale;
 
@@ -17,8 +22,14 @@ import ee.jakarta.xml.ns.jakartaee.ServletType;
 import ee.jakarta.xml.ns.jakartaee.TrueFalseType;
 import ee.jakarta.xml.ns.jakartaee.UrlPatternType;
 import ee.jakarta.xml.ns.jakartaee.WebAppType;
+import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletRegistration;
+import jakarta.servlet.annotation.WebInitParam;
+import jakarta.servlet.annotation.WebServlet;
 import jakarta.xml.bind.JAXB;
+import se.narstrom.myr.servlet.Context;
+import se.narstrom.myr.servlet.DefaultServlet;
+import se.narstrom.myr.servlet.ServletClassLoader;
 import se.narstrom.myr.servlet.session.SessionManager;
 
 public final class Deployer {
@@ -85,6 +96,45 @@ public final class Deployer {
 		final ServletRegistration.Dynamic registration = context.addServlet("Default Servlet", new DefaultServlet());
 		registration.addMapping("/");
 
+		scanForAnnotations(context);
+
 		return context;
+	}
+
+	private static void scanForAnnotations(final Context context) throws IOException {
+		final ServletClassLoader classLoader = (ServletClassLoader) context.getClassLoader();
+		final Path dir = Path.of(context.getRealPath("/"), "WEB-INF", "classes");
+
+		Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
+			@Override
+			public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) throws IOException {
+				scanForAnnotations_visitClassFile(context, classLoader, dir.relativize(file));
+				return FileVisitResult.CONTINUE;
+			}
+		});
+	}
+
+	private static void scanForAnnotations_visitClassFile(final Context context, final ServletClassLoader classLoader, final Path file) throws IOException {
+		final String pathString = file.toString();
+		if (!pathString.endsWith(".class"))
+			return;
+		final String className = pathString.substring(0, pathString.length() - 6).replace(File.separatorChar, '.');
+		final Class<?> clazz;
+		try {
+			clazz = classLoader.loadClass(className);
+		} catch (final ClassNotFoundException ex) {
+			throw new IOException(ex);
+		}
+
+		final WebServlet webServlet = clazz.getAnnotation(WebServlet.class);
+		if (webServlet != null && Servlet.class.isAssignableFrom(clazz)) {
+			final ServletRegistration.Dynamic registration = context.addServlet(webServlet.name(), (Class<? extends Servlet>) clazz);
+			for (final WebInitParam param : webServlet.initParams()) {
+				registration.setInitParameter(param.name(), param.value());
+			}
+			registration.addMapping(webServlet.urlPatterns());
+			registration.addMapping(webServlet.value());
+			// registration.setLoadOnStartup(webServlet.loadOnStartup());
+		}
 	}
 }

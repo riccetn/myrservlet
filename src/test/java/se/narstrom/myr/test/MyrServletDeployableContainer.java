@@ -25,7 +25,7 @@ import se.narstrom.myr.http.v1.Http1WorkerFactory;
 import se.narstrom.myr.net.Server;
 import se.narstrom.myr.servlet.Container;
 import se.narstrom.myr.servlet.Context;
-import se.narstrom.myr.servlet.Deployer;
+import se.narstrom.myr.servlet.deploy.Deployer;
 import se.narstrom.myr.servlet.session.SessionManager;
 
 public class MyrServletDeployableContainer implements DeployableContainer<MyrServletContainerConfiguration> {
