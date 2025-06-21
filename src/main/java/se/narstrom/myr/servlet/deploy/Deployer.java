@@ -105,6 +105,9 @@ public final class Deployer {
 		final ServletClassLoader classLoader = (ServletClassLoader) context.getClassLoader();
 		final Path dir = Path.of(context.getRealPath("/"), "WEB-INF", "classes");
 
+		if(!Files.isDirectory(dir))
+			return;
+
 		Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) throws IOException {

@@ -8,6 +8,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -15,12 +16,13 @@ import java.util.Map;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpServletResponseWrapper;
+import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.mime.MediaType;
 import se.narstrom.myr.servlet.Context;
 import se.narstrom.myr.util.Result;
 
-public class Response extends HttpServletResponseWrapper {
+public class Response implements HttpServletResponse {
+	private final HttpResponse response;
 
 	private final OuputBuffer buffer;
 
@@ -32,8 +34,8 @@ public class Response extends HttpServletResponseWrapper {
 
 	private Result<Charset, UnsupportedEncodingException> encoding = null;
 
-	public Response(final HttpServletResponse response, final Context context) {
-		super(response);
+	public Response(final HttpResponse response, final Context context) {
+		this.response = response;
 		this.buffer = new OuputBuffer(response);
 		this.context = context;
 	}
@@ -288,5 +290,50 @@ public class Response extends HttpServletResponseWrapper {
 	@Override
 	public void addIntHeader(final String name, final int value) {
 		addHeader(name, Integer.toString(value));
+	}
+
+	@Override
+	public boolean isCommitted() {
+		return response.isCommitted();
+	}
+
+	@Override
+	public boolean containsHeader(final String name) {
+		return response.containsHeader(name);
+	}
+
+	@Override
+	public void setHeader(final String name, final String value) {
+		response.setHeader(name, value);
+	}
+
+	@Override
+	public void addHeader(final String name, final String value) {
+		response.addHeader(name, value);
+	}
+
+	@Override
+	public void setStatus(int status) {
+		response.setStatus(status);
+	}
+
+	@Override
+	public int getStatus() {
+		return response.getStatus();
+	}
+
+	@Override
+	public String getHeader(final String name) {
+		return response.getHeader(name);
+	}
+
+	@Override
+	public Collection<String> getHeaders(final String name) {
+		return response.getHeaders(name);
+	}
+
+	@Override
+	public Collection<String> getHeaderNames() {
+		return response.getHeaderNames();
 	}
 }

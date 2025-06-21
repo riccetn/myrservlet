@@ -23,19 +23,22 @@ import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jakarta.servlet.AsyncContext;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletInputStream;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletMapping;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
+import se.narstrom.myr.http.HttpRequest;
 import se.narstrom.myr.http.state.CookieParser;
 import se.narstrom.myr.mime.MediaType;
 import se.narstrom.myr.servlet.Attributes;
@@ -50,14 +53,16 @@ import se.narstrom.myr.uri.UrlEncoding;
 import se.narstrom.myr.util.Result;
 
 // https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#the-request
-public class Request extends HttpServletRequestWrapper {
+public class Request implements HttpServletRequest {
+	private HttpRequest request;
+
 	private final Logger logger = Logger.getLogger(getClass().getName());
 
 	private final Dispatcher dispatcher;
 
 
-	public Request(final HttpServletRequest request, final Dispatcher dispatcher) {
-		super(request);
+	public Request(final HttpRequest request, final Dispatcher dispatcher) {
+		this.request = request;
 		this.dispatcher = dispatcher;
 	}
 
@@ -462,7 +467,7 @@ public class Request extends HttpServletRequestWrapper {
 		if (readerReturned)
 			throw new IllegalStateException("Stream or reader but not both");
 		streamReturned = true;
-		return super.getInputStream();
+		return new RequestInputStream(request.getInputStream());
 	}
 
 	@Override
@@ -477,7 +482,7 @@ public class Request extends HttpServletRequestWrapper {
 			if (charset == null)
 				charset = Charset.defaultCharset();
 
-			reader = new BufferedReader(new InputStreamReader(super.getInputStream(), charset));
+			reader = new BufferedReader(new InputStreamReader(request.getInputStream(), charset));
 		}
 		return reader;
 	}
@@ -524,16 +529,6 @@ public class Request extends HttpServletRequestWrapper {
 
 	@Override
 	public String getRequestId() {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public String getProtocolRequestId() {
-		return "";
-	}
-
-	@Override
-	public ServletConnection getServletConnection() {
 		throw new UnsupportedOperationException();
 	}
 
@@ -586,5 +581,126 @@ public class Request extends HttpServletRequestWrapper {
 	@Override
 	public <T extends HttpUpgradeHandler> T upgrade(Class<T> handlerClass) throws IOException, ServletException {
 		throw new UnsupportedOperationException();
+	}
+
+
+	@Override
+	public String getHeader(final String name) {
+		return request.getHeader(name);
+	}
+
+	@Override
+	public Enumeration<String> getHeaderNames() {
+		return request.getHeaderNames();
+	}
+
+	@Override
+	public Enumeration<String> getHeaders(final String name) {
+		return request.getHeaders(name);
+	}
+
+	@Override
+	public String getLocalAddr() {
+		return request.getLocalAddr();
+	}
+
+	@Override
+	public String getLocalName() {
+		return request.getLocalName();
+	}
+
+	@Override
+	public int getLocalPort() {
+		return request.getLocalPort();
+	}
+
+	@Override
+	public String getMethod() {
+		return request.getMethod();
+	}
+
+	@Override
+	public String getProtocol() {
+		return request.getProtocol();
+	}
+
+	@Override
+	public String getProtocolRequestId() {
+		return request.getProtocolRequestId();
+	}
+
+	@Override
+	public String getQueryString() {
+		return request.getQueryString();
+	}
+
+	@Override
+	public String getRemoteAddr() {
+		return request.getRemoteAddr();
+	}
+
+	@Override
+	public String getRemoteHost() {
+		return request.getRemoteHost();
+	}
+
+	@Override
+	public int getRemotePort() {
+		return request.getRemotePort();
+	}
+
+	@Override
+	public String getRequestURI() {
+		return request.getRequestURI();
+	}
+
+	@Override
+	public String getScheme() {
+		return request.getScheme();
+	}
+
+	@Override
+	public String getServerName() {
+		return request.getServerName();
+	}
+
+	@Override
+	public int getServerPort() {
+		return request.getServerPort();
+	}
+
+	@Override
+	public ServletConnection getServletConnection() {
+		return request.getServletConnection();
+	}
+
+	@Override
+	public boolean isSecure() {
+		return request.isSecure();
+	}
+
+	@Override
+	public AsyncContext startAsync() throws IllegalStateException {
+		throw new IllegalStateException("No async");
+	}
+
+	@Override
+	public AsyncContext startAsync(ServletRequest servletRequest, ServletResponse servletResponse) throws IllegalStateException {
+		throw new IllegalStateException("No async");
+	}
+
+	@Override
+	public boolean isAsyncStarted() {
+		throw new IllegalStateException("No async");
+	}
+
+	@Override
+	public boolean isAsyncSupported() {
+		throw new IllegalStateException("No async");
+	}
+
+	@Override
+	public AsyncContext getAsyncContext() {
+		throw new IllegalStateException("No async");
 	}
 }

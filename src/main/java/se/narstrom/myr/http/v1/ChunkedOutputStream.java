@@ -1,27 +1,14 @@
 package se.narstrom.myr.http.v1;
 
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.WriteListener;
-
-public final class ChunkedOutputStream extends ServletOutputStream {
-	private final OutputStream out;
+public final class ChunkedOutputStream extends FilterOutputStream {
 	private boolean closed;
 
 	public ChunkedOutputStream(final OutputStream out) {
-		this.out = out;
-	}
-
-	@Override
-	public boolean isReady() {
-		throw new IllegalStateException("Async I/O is not supported");
-	}
-
-	@Override
-	public void setWriteListener(final WriteListener writeListener) {
-		throw new IllegalStateException("Async I/O is not supported");
+		super(out);
 	}
 
 	@Override
@@ -40,9 +27,9 @@ public final class ChunkedOutputStream extends ServletOutputStream {
 
 	@Override
 	public void write(final byte[] b, final int off, final int len) throws IOException {
-		if(closed)
+		if (closed)
 			throw new IOException("closed stream");
-		if(len == 0)
+		if (len == 0)
 			return;
 		final String hexlen = Integer.toHexString(len);
 		out.write((hexlen + "\r\n").getBytes());

@@ -1,18 +1,15 @@
 package se.narstrom.myr.http.v1;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import jakarta.servlet.ReadListener;
-import jakarta.servlet.ServletInputStream;
-
-public final class LengthInputStream extends ServletInputStream {
-	private final InputStream in;
+public final class LengthInputStream extends FilterInputStream {
 	private long remaining;
 	private long mark = -1;
 
 	public LengthInputStream(final InputStream in, final long length) {
-		this.in = in;
+		super(in);
 		this.remaining = length;
 	}
 
@@ -80,20 +77,5 @@ public final class LengthInputStream extends ServletInputStream {
 			throw new IOException("reset() called before mark()");
 		super.reset();
 		remaining = mark;
-	}
-
-	@Override
-	public boolean isFinished() {
-		return remaining == 0L;
-	}
-
-	@Override
-	public boolean isReady() {
-		throw new IllegalStateException("Async I/O is not supported");
-	}
-
-	@Override
-	public void setReadListener(final ReadListener readListener) {
-		throw new IllegalStateException("Async I/O is not supported");
 	}
 }

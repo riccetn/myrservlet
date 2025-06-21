@@ -6,16 +6,16 @@ import java.nio.ByteBuffer;
 
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
-import jakarta.servlet.http.HttpServletResponse;
+import se.narstrom.myr.http.HttpResponse;
 
 public final class OuputBuffer extends ServletOutputStream {
-	private final HttpServletResponse response;
+	private final HttpResponse response;
 
 	private ByteBuffer buffer;
 
 	private OutputStream out;
 
-	public OuputBuffer(final HttpServletResponse response) {
+	public OuputBuffer(final HttpResponse response) {
 		this.buffer = ByteBuffer.allocate(1500);
 		this.response = response;
 	}

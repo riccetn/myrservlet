@@ -1,6 +1,11 @@
 package se.narstrom.myr.http.exceptions;
 
+import java.io.Serial;
+
 public abstract class ClientError extends HttpStatusCodeException {
+	@Serial
+	private static final long serialVersionUID = 1L;
+
 	protected ClientError(final int statusCode, final String message) {
 		super(statusCode, message);
 	}

@@ -1,28 +1,15 @@
 package se.narstrom.myr.http.v1;
 
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.WriteListener;
-
-public final class LengthOutputStream extends ServletOutputStream {
-	private final OutputStream out;
+public final class LengthOutputStream extends FilterOutputStream {
 	private long remaining;
 
 	public LengthOutputStream(final OutputStream out, final long length) {
-		this.out = out;
+		super(out);
 		this.remaining = length;
-	}
-
-	@Override
-	public boolean isReady() {
-		throw new IllegalStateException("Async I/O is not supported");
-	}
-
-	@Override
-	public void setWriteListener(final WriteListener writeListener) {
-		throw new IllegalStateException("Async I/O is not supported");
 	}
 
 	@Override
@@ -52,5 +39,4 @@ public final class LengthOutputStream extends ServletOutputStream {
 		out.write(b);
 		remaining -= 1;
 	}
-
 }

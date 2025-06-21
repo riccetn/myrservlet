@@ -40,6 +40,8 @@ import jakarta.servlet.descriptor.JspConfigDescriptor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.MappingMatch;
+import se.narstrom.myr.http.HttpRequest;
+import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.http.v1.RequestTarget;
 import se.narstrom.myr.servlet.response.Response;
 import se.narstrom.myr.servlet.session.SessionManager;
@@ -185,7 +187,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		}
 	}
 
-	public void service(final HttpServletRequest request, final HttpServletResponse response) {
+	public void service(final HttpRequest request, final HttpResponse response) {
 		final String uri = request.getRequestURI();
 		if (!uri.startsWith(contextPath))
 			throw new IllegalArgumentException("This request is not for this context: " + uri + " is not in " + contextPath);
@@ -210,7 +212,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		}
 	}
 
-	void handleException(HttpServletRequest request, final HttpServletResponse response, final Throwable ex) {
+	void handleException(HttpRequest request, final HttpResponse response, final Throwable ex) {
 		try {
 			Class<?> exceptionClass = ex.getClass();
 			String path = null;
@@ -238,7 +240,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		}
 	}
 
-	void handleError(final HttpServletRequest request, final HttpServletResponse response, final int status, final String message) {
+	void handleError(final HttpRequest request, final HttpResponse response, final int status, final String message) {
 		try {
 			final String path = errorMappings.get(status);
 

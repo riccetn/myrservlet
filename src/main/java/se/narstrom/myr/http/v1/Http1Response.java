@@ -9,14 +9,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
 import se.narstrom.myr.MappingCollection;
+import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.http.semantics.FieldName;
 import se.narstrom.myr.http.semantics.FieldValue;
-import se.narstrom.myr.servlet.response.StubResponse;
 
-public final class Http1Response extends StubResponse {
+public final class Http1Response implements HttpResponse {
 	private final HashMap<FieldName, ArrayList<FieldValue>> headerFields = new HashMap<>();
 
 	private final OutputStream socketOutputStream;
@@ -25,7 +24,7 @@ public final class Http1Response extends StubResponse {
 
 	private int status = HttpServletResponse.SC_OK;
 
-	private ServletOutputStream outputStream = null;
+	private OutputStream outputStream = null;
 
 	public Http1Response(final OutputStream socketOutputStream) {
 		this.socketOutputStream = socketOutputStream;
@@ -67,7 +66,7 @@ public final class Http1Response extends StubResponse {
 	}
 
 	@Override
-	public ServletOutputStream getOutputStream() throws IOException {
+	public OutputStream getOutputStream() throws IOException {
 		final List<FieldValue> contentLength = headerFields.get(new FieldName("content-length"));
 		if (contentLength != null) {
 			long length = -1L;
@@ -108,7 +107,6 @@ public final class Http1Response extends StubResponse {
 			throw new IllegalStateException("Response is already committed");
 		status = HttpServletResponse.SC_OK;
 		headerFields.clear();
-		super.reset();
 	}
 
 	@Override

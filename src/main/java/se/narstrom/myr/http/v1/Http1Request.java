@@ -1,17 +1,17 @@
 package se.narstrom.myr.http.v1;
 
+import java.io.InputStream;
 import java.net.Socket;
 import java.util.Enumeration;
 import java.util.Objects;
 
 import jakarta.servlet.ServletConnection;
-import jakarta.servlet.ServletInputStream;
+import se.narstrom.myr.http.HttpRequest;
 import se.narstrom.myr.http.semantics.Fields;
 import se.narstrom.myr.http.semantics.Method;
-import se.narstrom.myr.servlet.request.StubRequest;
 import se.narstrom.myr.uri.Query;
 
-public final class Http1Request extends StubRequest {
+public final class Http1Request implements HttpRequest {
 	private final Method method;
 
 	private final AbsolutePath requestUri;
@@ -22,9 +22,9 @@ public final class Http1Request extends StubRequest {
 
 	private final Socket socket;
 
-	private final ServletInputStream inputStream;
+	private final InputStream inputStream;
 
-	public Http1Request(final Method method, final AbsolutePath requestUri, final Query query, final Fields headerFields, final Socket socket, final ServletInputStream in) {
+	public Http1Request(final Method method, final AbsolutePath requestUri, final Query query, final Fields headerFields, final Socket socket, final InputStream in) {
 		this.method = method;
 		this.requestUri = requestUri;
 		this.query = query;
@@ -51,7 +51,7 @@ public final class Http1Request extends StubRequest {
 	}
 
 	@Override
-	public ServletInputStream getInputStream() {
+	public InputStream getInputStream() {
 		return inputStream;
 	}
 
@@ -137,7 +137,6 @@ public final class Http1Request extends StubRequest {
 
 	@Override
 	public ServletConnection getServletConnection() {
-		// TODO Auto-generated method stub
 		throw new UnsupportedOperationException();
 	}
 

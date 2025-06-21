@@ -8,8 +8,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import se.narstrom.myr.http.HttpRequest;
+import se.narstrom.myr.http.HttpResponse;
+import se.narstrom.myr.http.exceptions.BadRequest;
+import se.narstrom.myr.http.exceptions.HttpStatusCodeException;
+import se.narstrom.myr.http.exceptions.NotFound;
 
 public final class Container implements AutoCloseable {
 	private final Logger logger = Logger.getLogger(getClass().getName());
@@ -27,11 +30,10 @@ public final class Container implements AutoCloseable {
 	public void close() {
 	}
 
-	public void service(final HttpServletRequest request, final HttpServletResponse response) throws IOException {
+	public void service(final HttpRequest request, final HttpResponse response) throws IOException, HttpStatusCodeException {
 		final String uri = request.getRequestURI();
 		if (uri.charAt(0) != '/') {
-			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Bad Request");
-			return;
+			throw new BadRequest("Invalid URI");
 		}
 
 		int slash = uri.indexOf('/', 1);
@@ -49,9 +51,8 @@ public final class Container implements AutoCloseable {
 			context = contexes.get("");
 
 		if (context == null) {
-			logger.log(Level.WARNING, "No context foubnd for URI: {0}", uri);
-			response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not Found");
-			return;
+			logger.log(Level.WARNING, "No context found for URI: {0}", uri);
+			throw new NotFound("No context");
 		}
 
 		logger.log(Level.INFO, "Dispatching: {0} to context {1}", new Object[] { uri, context.getServletContextName() });

@@ -12,6 +12,8 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.UnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import se.narstrom.myr.http.HttpRequest;
+import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
 
@@ -48,7 +50,7 @@ public final class Dispatcher implements RequestDispatcher {
 		return this.response;
 	}
 
-	public void request(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
+	public void request(final HttpRequest request, final HttpResponse response) throws ServletException, IOException {
 		logger.log(Level.INFO, "DISPATCH for servlet ''{0}, asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
 		final Request wrappedRequest = new Request(request, this);
 		final Response wrappedResponse = new Response(response, context);
@@ -69,7 +71,7 @@ public final class Dispatcher implements RequestDispatcher {
 		dispatch(new IncludeRequest((HttpServletRequest) request), new IncludeResponse((HttpServletResponse) response));
 	}
 
-	public void error(final HttpServletRequest request, final HttpServletResponse response, final Throwable throwable, final int errorCode) throws ServletException, IOException {
+	public void error(final HttpRequest request, final HttpResponse response, final Throwable throwable, final int errorCode) throws ServletException, IOException {
 		final ErrorRequest errorRequest = new ErrorRequest(request, this);
 		errorRequest.setAttribute(ERROR_EXCEPTION, throwable);
 		errorRequest.setAttribute(ERROR_EXCEPTION_TYPE, throwable.getClass());
