@@ -27,9 +27,9 @@ import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.annotation.WebInitParam;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.xml.bind.JAXB;
-import se.narstrom.myr.servlet.Context;
 import se.narstrom.myr.servlet.DefaultServlet;
-import se.narstrom.myr.servlet.ServletClassLoader;
+import se.narstrom.myr.servlet.context.Context;
+import se.narstrom.myr.servlet.context.ServletClassLoader;
 import se.narstrom.myr.servlet.session.SessionManager;
 
 public final class Deployer {

@@ -25,18 +25,22 @@ public final class OuputBuffer extends ServletOutputStream {
 	}
 
 	void setBufferSize(int size) {
-		if(response.isCommitted() || buffer.position() > 0)
+		if (response.isCommitted() || buffer.position() > 0)
 			throw new IllegalStateException();
 		buffer = ByteBuffer.allocate(size);
 	}
 
+	int getBufferSize() {
+		return buffer.capacity();
+	}
+
 	@Override
 	public void flush() throws IOException {
-		if(out == null) {
+		if (out == null) {
 			out = response.getOutputStream();
 		}
 		buffer.flip();
-		if(buffer.remaining() > 0)
+		if (buffer.remaining() > 0)
 			out.write(buffer.array(), buffer.arrayOffset() + buffer.position(), buffer.remaining());
 		buffer.clear();
 	}

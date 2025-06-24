@@ -13,6 +13,7 @@ import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.http.exceptions.BadRequest;
 import se.narstrom.myr.http.exceptions.HttpStatusCodeException;
 import se.narstrom.myr.http.exceptions.NotFound;
+import se.narstrom.myr.servlet.context.Context;
 
 public final class Container implements AutoCloseable {
 	private final Logger logger = Logger.getLogger(getClass().getName());

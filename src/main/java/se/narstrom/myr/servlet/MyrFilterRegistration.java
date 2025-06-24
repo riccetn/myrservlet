@@ -13,6 +13,7 @@ import java.util.Set;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterRegistration;
+import se.narstrom.myr.servlet.context.Context;
 
 public final class MyrFilterRegistration implements FilterRegistration.Dynamic {
 	private final Context context;

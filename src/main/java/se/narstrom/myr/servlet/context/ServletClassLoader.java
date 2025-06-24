@@ -1,4 +1,4 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.servlet.context;
 
 import java.io.IOException;
 import java.io.InputStream;

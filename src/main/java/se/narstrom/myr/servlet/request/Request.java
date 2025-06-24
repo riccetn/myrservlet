@@ -42,9 +42,9 @@ import se.narstrom.myr.http.HttpRequest;
 import se.narstrom.myr.http.state.CookieParser;
 import se.narstrom.myr.mime.MediaType;
 import se.narstrom.myr.servlet.Attributes;
-import se.narstrom.myr.servlet.Context;
 import se.narstrom.myr.servlet.Dispatcher;
 import se.narstrom.myr.servlet.Parameters;
+import se.narstrom.myr.servlet.context.Context;
 import se.narstrom.myr.servlet.session.Session;
 import se.narstrom.myr.servlet.session.SessionIdSource;
 import se.narstrom.myr.servlet.session.SessionKey;
@@ -150,6 +150,21 @@ public class Request implements HttpServletRequest {
 	// 3.4. Headers
 	// ============
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#headers
+	@Override
+	public String getHeader(final String name) {
+		return request.getHeader(name);
+	}
+
+	@Override
+	public Enumeration<String> getHeaderNames() {
+		return request.getHeaderNames();
+	}
+
+	@Override
+	public Enumeration<String> getHeaders(final String name) {
+		return request.getHeaders(name);
+	}
+
 	@Override
 	public long getDateHeader(final String name) {
 		final String dateString = getHeader(name);
@@ -303,7 +318,7 @@ public class Request implements HttpServletRequest {
 
 	@Override
 	public void setCharacterEncoding(final String encoding) throws UnsupportedEncodingException {
-		if (reader != null || parameters != null)
+		if (streamReturned || readerReturned || parameters != null)
 			return;
 		try {
 			this.encoding = new Result.Ok<>(Charset.forName(encoding));
@@ -314,7 +329,7 @@ public class Request implements HttpServletRequest {
 
 	@Override
 	public void setCharacterEncoding(final Charset encoding) {
-		if (reader != null || parameters != null)
+		if (streamReturned || readerReturned || parameters != null)
 			return;
 		this.encoding = new Result.Ok<>(encoding);
 	}
@@ -583,21 +598,6 @@ public class Request implements HttpServletRequest {
 		throw new UnsupportedOperationException();
 	}
 
-
-	@Override
-	public String getHeader(final String name) {
-		return request.getHeader(name);
-	}
-
-	@Override
-	public Enumeration<String> getHeaderNames() {
-		return request.getHeaderNames();
-	}
-
-	@Override
-	public Enumeration<String> getHeaders(final String name) {
-		return request.getHeaders(name);
-	}
 
 	@Override
 	public String getLocalAddr() {

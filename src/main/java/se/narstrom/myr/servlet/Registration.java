@@ -13,6 +13,7 @@ import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.ServletSecurityElement;
+import se.narstrom.myr.servlet.context.Context;
 
 public final class Registration implements ServletRegistration.Dynamic {
 	private final Context context;
@@ -56,7 +57,7 @@ public final class Registration implements ServletRegistration.Dynamic {
 		inited = true;
 	}
 
-	void destroy() {
+	public void destroy() {
 		if (!inited)
 			return;
 		inited = false;

@@ -8,29 +8,31 @@ import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.mime.MediaType;
-import se.narstrom.myr.servlet.Context;
+import se.narstrom.myr.servlet.context.Context;
 import se.narstrom.myr.util.Result;
 
+// 5. The Response
+// ===============
+// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#the-response
 public class Response implements HttpServletResponse {
 	private final HttpResponse response;
 
-	private final OuputBuffer buffer;
-
 	private final Context context;
-
-	private boolean outputStreamReturned = false;
-
-	private PrintWriter writer = null;
 
 	private Result<Charset, UnsupportedEncodingException> encoding = null;
 
@@ -45,6 +47,166 @@ public class Response implements HttpServletResponse {
 			writer.flush();
 		buffer.close();
 	}
+
+	// 5.1 Buffering
+	// =============
+	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#buffering
+	private final OuputBuffer buffer;
+	private PrintWriter writer = null;
+	private boolean outputStreamReturned = false;
+	private boolean writerReturned = false;
+
+	@Override
+	public ServletOutputStream getOutputStream() throws IOException {
+		if (writerReturned)
+			throw new IllegalStateException("Stream or writer, not both");
+		outputStreamReturned = true;
+		return buffer;
+	}
+
+	@Override
+	public PrintWriter getWriter() throws IOException {
+		if (outputStreamReturned)
+			throw new IllegalStateException("Stream of writer, not both");
+
+		if (writer == null) {
+			if (encoding == null)
+				setCharacterEncoding(StandardCharsets.ISO_8859_1);
+
+			// The PrintWriter constructors that take OutputStream creates an extra buffer,
+			// so we manually create the OutputStreamWriter to have better control over
+			// buffering
+			writer = new PrintWriter(new OutputStreamWriter(buffer, encoding.value()), false);
+		}
+
+		writerReturned = true;
+		return writer;
+	}
+
+	@Override
+	public int getBufferSize() {
+		return buffer.getBufferSize();
+	}
+
+	@Override
+	public void setBufferSize(final int size) {
+		if (isCommitted())
+			throw new IllegalStateException();
+		buffer.setBufferSize(size);
+	}
+
+	@Override
+	public boolean isCommitted() {
+		return response.isCommitted();
+	}
+
+	@Override
+	public void reset() {
+		if (isCommitted())
+			throw new IllegalStateException("Response has already been committed");
+		buffer.resetBuffer();
+		outputStreamReturned = false;
+		writer = null;
+	}
+
+	@Override
+	public void resetBuffer() {
+		if (isCommitted())
+			throw new IllegalStateException("Response has already been committed");
+		buffer.resetBuffer();
+	}
+
+	@Override
+	public void flushBuffer() throws IOException {
+		if (writer != null)
+			writer.flush();
+		buffer.flush();
+	}
+
+
+	// 5.2. Headers
+	// ============
+	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#headers-2
+	@Override
+	public void setHeader(final String name, final String value) {
+		response.setHeader(name, value);
+	}
+
+	@Override
+	public void addHeader(final String name, final String value) {
+		response.addHeader(name, value);
+	}
+
+	@Override
+	public void setDateHeader(final String name, final long millis) {
+		final ZonedDateTime datetime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault());
+		setHeader(name, datetime.format(DateTimeFormatter.RFC_1123_DATE_TIME));
+	}
+
+	@Override
+	public void addDateHeader(final String name, final long millis) {
+		final ZonedDateTime datetime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault());
+		addHeader(name, datetime.format(DateTimeFormatter.RFC_1123_DATE_TIME));
+	}
+
+	@Override
+	public void setIntHeader(final String name, final int value) {
+		setHeader(name, Integer.toString(value));
+	}
+
+	@Override
+	public void addIntHeader(final String name, final int value) {
+		addHeader(name, Integer.toString(value));
+	}
+
+
+	// 5.3 HTTP Trailers
+	// =================
+	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#http-trailers
+	private Supplier<Map<String, String>> trailerFieldsSupplier = null;
+
+	@Override
+	public void setTrailerFields(final Supplier<Map<String, String>> supplier) {
+		this.trailerFieldsSupplier = supplier;
+	}
+
+	@Override
+	public Supplier<Map<String, String>> getTrailerFields() {
+		return trailerFieldsSupplier;
+	}
+
+
+	// 5.5. Convenience Methods
+	// ========================
+	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#convenience-methods
+	@Override
+	public void sendError(final int statusCode, final String message) throws IOException {
+		reset();
+		setStatus(statusCode);
+		setContentType("text/plain");
+		setContentLength(message.length());
+		getWriter().write(message);
+		flushBuffer();
+	}
+
+	@Override
+	public void sendError(final int statusCode) throws IOException {
+		sendError(statusCode, "");
+	}
+
+	@Override
+	public void sendRedirect(final String location, final int sc, final boolean clearBuffer) throws IOException {
+		if(isCommitted())
+			throw new IllegalStateException();
+		if(clearBuffer)
+			resetBuffer();
+		setStatus(SC_FOUND);
+		setHeader("location", location);
+		setContentType("text/plain");
+		getWriter().write("Redirect to: " + location);
+		flushBuffer();
+	}
+
 
 	@Override
 	public void addCookie(Cookie cookie) {
@@ -92,31 +254,6 @@ public class Response implements HttpServletResponse {
 	}
 
 	@Override
-	public ServletOutputStream getOutputStream() throws IOException {
-		if (writer != null)
-			throw new IllegalStateException("Stream or writer, not both");
-		outputStreamReturned = true;
-		return buffer;
-	}
-
-	@Override
-	public PrintWriter getWriter() throws IOException {
-		if (writer == null) {
-			if (outputStreamReturned)
-				throw new IllegalStateException("Stream of writer, not both");
-
-			if (encoding == null)
-				setCharacterEncoding(StandardCharsets.ISO_8859_1);
-
-			// The PrintWriter constructors that take OutputStream creates an extra buffer,
-			// so we manually create the OutputStreamWriter
-			// to have better control of buffering
-			writer = new PrintWriter(new OutputStreamWriter(getOutputStream(), encoding.value()), false);
-		}
-		return writer;
-	}
-
-	@Override
 	public void setCharacterEncoding(final String charset) {
 		if (writer != null)
 			return;
@@ -127,7 +264,7 @@ public class Response implements HttpServletResponse {
 
 	@Override
 	public void setCharacterEncoding(final Charset encoding) {
-		if (writer != null)
+		if (writerReturned)
 			return;
 
 		if (encoding == null) {
@@ -200,41 +337,6 @@ public class Response implements HttpServletResponse {
 	}
 
 	@Override
-	public void setBufferSize(final int size) {
-		if (isCommitted())
-			throw new IllegalStateException();
-		buffer.setBufferSize(size);
-	}
-
-	@Override
-	public int getBufferSize() {
-		return 0;
-	}
-
-	@Override
-	public void flushBuffer() throws IOException {
-		if (writer != null)
-			writer.flush();
-		buffer.flush();
-	}
-
-	@Override
-	public void resetBuffer() {
-		if (isCommitted())
-			throw new IllegalStateException("Response has already been committed");
-		buffer.resetBuffer();
-	}
-
-	@Override
-	public void reset() {
-		if (isCommitted())
-			throw new IllegalStateException("Response has already been committed");
-		buffer.resetBuffer();
-		outputStreamReturned = false;
-		writer = null;
-	}
-
-	@Override
 	public void setLocale(final Locale locale) {
 		setHeader("content-language", locale.toLanguageTag());
 		if (encoding == null) {
@@ -253,63 +355,8 @@ public class Response implements HttpServletResponse {
 	}
 
 	@Override
-	public void sendError(int sc, String msg) throws IOException {
-		reset();
-		setStatus(sc);
-		setContentType("text/plain");
-		setContentLength(msg.length());
-		getWriter().write(msg);
-		flushBuffer();
-	}
-
-	@Override
-	public void sendError(int sc) throws IOException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public void sendRedirect(String location, int sc, boolean clearBuffer) throws IOException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public void setDateHeader(String name, long date) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public void addDateHeader(String name, long date) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public void setIntHeader(final String name, final int value) {
-		setHeader(name, Integer.toString(value));
-	}
-
-	@Override
-	public void addIntHeader(final String name, final int value) {
-		addHeader(name, Integer.toString(value));
-	}
-
-	@Override
-	public boolean isCommitted() {
-		return response.isCommitted();
-	}
-
-	@Override
 	public boolean containsHeader(final String name) {
 		return response.containsHeader(name);
-	}
-
-	@Override
-	public void setHeader(final String name, final String value) {
-		response.setHeader(name, value);
-	}
-
-	@Override
-	public void addHeader(final String name, final String value) {
-		response.addHeader(name, value);
 	}
 
 	@Override
