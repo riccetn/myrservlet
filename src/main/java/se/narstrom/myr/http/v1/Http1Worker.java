@@ -8,7 +8,7 @@ import java.net.Socket;
 import se.narstrom.myr.http.exceptions.HttpStatusCodeException;
 import se.narstrom.myr.http.semantics.Fields;
 import se.narstrom.myr.net.ServerClientWorker;
-import se.narstrom.myr.servlet.Container;
+import se.narstrom.myr.servlet.container.Container;
 
 public final class Http1Worker implements ServerClientWorker {
 	private final Container container;

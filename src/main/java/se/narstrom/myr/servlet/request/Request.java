@@ -58,11 +58,14 @@ public class Request implements HttpServletRequest {
 
 	private final Logger logger = Logger.getLogger(getClass().getName());
 
-	private final Dispatcher dispatcher;
+	private Dispatcher dispatcher;
 
 
-	public Request(final HttpRequest request, final Dispatcher dispatcher) {
+	public Request(final HttpRequest request) {
 		this.request = request;
+	}
+
+	public void setDispatcher(final Dispatcher dispatcher) {
 		this.dispatcher = dispatcher;
 	}
 

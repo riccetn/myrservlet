@@ -12,8 +12,6 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.UnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import se.narstrom.myr.http.HttpRequest;
-import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.servlet.context.Context;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
@@ -51,12 +49,11 @@ public final class Dispatcher implements RequestDispatcher {
 		return this.response;
 	}
 
-	public void request(final HttpRequest request, final HttpResponse response) throws ServletException, IOException {
+	public void request(final Request request, final Response response) throws ServletException, IOException {
 		logger.log(Level.INFO, "DISPATCH for servlet ''{0}, asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
-		final Request wrappedRequest = new Request(request, this);
-		final Response wrappedResponse = new Response(response, context);
-		dispatch(wrappedRequest, wrappedResponse);
-		wrappedResponse.close();
+		request.setDispatcher(this);
+		response.setContext(context);
+		dispatch(request, response);
 	}
 
 	@Override
@@ -72,8 +69,8 @@ public final class Dispatcher implements RequestDispatcher {
 		dispatch(new IncludeRequest((HttpServletRequest) request), new IncludeResponse((HttpServletResponse) response));
 	}
 
-	public void error(final HttpRequest request, final HttpResponse response, final Throwable throwable, final int errorCode) throws ServletException, IOException {
-		final ErrorRequest errorRequest = new ErrorRequest(request, this);
+	public void error(final Request request, final Response response, final Throwable throwable, final int errorCode) throws ServletException, IOException {
+		final ErrorRequest errorRequest = new ErrorRequest(request);
 		errorRequest.setAttribute(ERROR_EXCEPTION, throwable);
 		errorRequest.setAttribute(ERROR_EXCEPTION_TYPE, throwable.getClass());
 		errorRequest.setAttribute(ERROR_MESSAGE, throwable.getMessage());
@@ -83,12 +80,10 @@ public final class Dispatcher implements RequestDispatcher {
 		errorRequest.setAttribute(ERROR_STATUS_CODE, errorCode);
 		errorRequest.setAttribute(ERROR_SERVLET_NAME, "TODO: Get servlet name");
 
-		final Response errorResponse = new Response(response, context);
-		errorResponse.reset();
-		errorResponse.setStatus(errorCode);
+		response.reset();
+		response.setStatus(errorCode);
 
-		dispatch(errorRequest, errorResponse);
-		errorResponse.close();
+		dispatch(errorRequest, response);
 	}
 
 	private void dispatch(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {

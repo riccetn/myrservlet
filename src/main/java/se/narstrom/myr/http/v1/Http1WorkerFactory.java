@@ -5,7 +5,7 @@ import java.net.Socket;
 
 import se.narstrom.myr.net.ServerClientWorker;
 import se.narstrom.myr.net.ServerClientWorkerFactory;
-import se.narstrom.myr.servlet.Container;
+import se.narstrom.myr.servlet.container.Container;
 
 public final class Http1WorkerFactory implements ServerClientWorkerFactory {
 	private final Container container;

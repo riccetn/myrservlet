@@ -32,13 +32,16 @@ import se.narstrom.myr.util.Result;
 public class Response implements HttpServletResponse {
 	private final HttpResponse response;
 
-	private final Context context;
+	private Context context;
 
 	private Result<Charset, UnsupportedEncodingException> encoding = null;
 
-	public Response(final HttpResponse response, final Context context) {
+	public Response(final HttpResponse response) {
 		this.response = response;
 		this.buffer = new OuputBuffer(response);
+	}
+
+	public void setContext(final Context context) {
 		this.context = context;
 	}
 
@@ -196,9 +199,9 @@ public class Response implements HttpServletResponse {
 
 	@Override
 	public void sendRedirect(final String location, final int sc, final boolean clearBuffer) throws IOException {
-		if(isCommitted())
+		if (isCommitted())
 			throw new IllegalStateException();
-		if(clearBuffer)
+		if (clearBuffer)
 			resetBuffer();
 		setStatus(SC_FOUND);
 		setHeader("location", location);

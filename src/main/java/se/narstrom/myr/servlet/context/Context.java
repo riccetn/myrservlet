@@ -39,8 +39,6 @@ import jakarta.servlet.UnavailableException;
 import jakarta.servlet.descriptor.JspConfigDescriptor;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.MappingMatch;
-import se.narstrom.myr.http.HttpRequest;
-import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.http.v1.RequestTarget;
 import se.narstrom.myr.servlet.Attributes;
 import se.narstrom.myr.servlet.CanonicalizedPath;
@@ -49,6 +47,7 @@ import se.narstrom.myr.servlet.InitParameters;
 import se.narstrom.myr.servlet.Mapping;
 import se.narstrom.myr.servlet.MyrFilterRegistration;
 import se.narstrom.myr.servlet.Registration;
+import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
 import se.narstrom.myr.servlet.session.SessionManager;
 
@@ -465,7 +464,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		}
 	}
 
-	public void service(final HttpRequest request, final HttpResponse response) {
+	public void service(final Request request, final Response response) {
 		final String uri = request.getRequestURI();
 		if (!uri.startsWith(contextPath))
 			throw new IllegalArgumentException("This request is not for this context: " + uri + " is not in " + contextPath);
@@ -490,7 +489,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		}
 	}
 
-	private void handleException(HttpRequest request, final HttpResponse response, final Throwable ex) {
+	private void handleException(final Request request, final Response response, final Throwable ex) {
 		try {
 			Class<?> exceptionClass = ex.getClass();
 			String path = null;
@@ -518,18 +517,17 @@ public final class Context implements AutoCloseable, ServletContext {
 		}
 	}
 
-	private void handleError(final HttpRequest request, final HttpResponse response, final int status, final String message) {
+	private void handleError(final Request request, final Response response, final int status, final String message) {
 		try {
 			final String path = errorMappings.get(status);
 
 			if (path == null) {
-				final Response errorResponse = new Response(response, this);
-				errorResponse.reset();
-				errorResponse.setStatus(status);
-				errorResponse.setContentType("text/plain");
-				errorResponse.setContentLength(message.length());
-				errorResponse.getWriter().write(message);
-				errorResponse.flushBuffer();
+				response.reset();
+				response.setStatus(status);
+				response.setContentType("text/plain");
+				response.setContentLength(message.length());
+				response.getWriter().write(message);
+				response.flushBuffer();
 				return;
 			}
 

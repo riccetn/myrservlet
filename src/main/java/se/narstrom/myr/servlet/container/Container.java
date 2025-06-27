@@ -1,4 +1,4 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.servlet.container;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -14,6 +14,8 @@ import se.narstrom.myr.http.exceptions.BadRequest;
 import se.narstrom.myr.http.exceptions.HttpStatusCodeException;
 import se.narstrom.myr.http.exceptions.NotFound;
 import se.narstrom.myr.servlet.context.Context;
+import se.narstrom.myr.servlet.request.Request;
+import se.narstrom.myr.servlet.response.Response;
 
 public final class Container implements AutoCloseable {
 	private final Logger logger = Logger.getLogger(getClass().getName());
@@ -31,7 +33,10 @@ public final class Container implements AutoCloseable {
 	public void close() {
 	}
 
-	public void service(final HttpRequest request, final HttpResponse response) throws IOException, HttpStatusCodeException {
+	public void service(final HttpRequest httpRequest, final HttpResponse httpResponse) throws IOException, HttpStatusCodeException {
+		final Request request = new Request(httpRequest);
+		final Response response = new Response(httpResponse);
+
 		final String uri = request.getRequestURI();
 		if (uri.charAt(0) != '/') {
 			throw new BadRequest("Invalid URI");
@@ -59,6 +64,7 @@ public final class Container implements AutoCloseable {
 		logger.log(Level.INFO, "Dispatching: {0} to context {1}", new Object[] { uri, context.getServletContextName() });
 
 		context.service(request, response);
+		response.close();
 	}
 
 	public void addContext(final Context context) {
