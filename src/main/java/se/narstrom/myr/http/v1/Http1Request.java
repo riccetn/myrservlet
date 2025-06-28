@@ -2,7 +2,9 @@ package se.narstrom.myr.http.v1;
 
 import java.io.InputStream;
 import java.net.Socket;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.Map;
 import java.util.Objects;
 
 import jakarta.servlet.ServletConnection;
@@ -143,5 +145,19 @@ public final class Http1Request implements HttpRequest {
 	@Override
 	public boolean isSecure() {
 		return false;
+	}
+
+	@Override
+	public boolean isTrailerFieldsReady() {
+		if(!(inputStream instanceof ChunkedInputStream chunkedInput))
+			return true;
+		return chunkedInput.isTrailerFieldsReady();
+	}
+
+	@Override
+	public Map<String, String> getTrailerFields() {
+		if(!(inputStream instanceof ChunkedInputStream chunkedInput))
+			return Collections.emptyMap();
+		return chunkedInput.getTrailerFields();
 	}
 }

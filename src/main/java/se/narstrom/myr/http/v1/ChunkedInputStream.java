@@ -4,11 +4,16 @@ import java.io.EOFException;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Map;
+
+import se.narstrom.myr.MappingMap;
+import se.narstrom.myr.http.semantics.Fields;
 
 public class ChunkedInputStream extends FilterInputStream {
 	private Http1InputStream in;
 	private ByteBuffer chunk = null;
 	private boolean finished = false;
+	private Fields trailerFields = null;
 
 	public ChunkedInputStream(final Http1InputStream in) {
 		super(in);
@@ -43,7 +48,7 @@ public class ChunkedInputStream extends FilterInputStream {
 		final int len = Integer.parseUnsignedInt(in.readLine(), 16);
 
 		if (len == 0) {
-			in.readFields();
+			trailerFields = in.readFields();
 			return false;
 		}
 
@@ -59,5 +64,15 @@ public class ChunkedInputStream extends FilterInputStream {
 		this.chunk = ByteBuffer.wrap(bytes);
 
 		return true;
+	}
+
+	public boolean isTrailerFieldsReady() {
+		return trailerFields != null;
+	}
+
+	public Map<String, String> getTrailerFields() {
+		if (trailerFields == null)
+			throw new IllegalStateException("Trailer is not ready");
+		return new MappingMap<>(trailerFields.getFieldMap(), name -> name.toString(), values -> values.getFirst().toString());
 	}
 }

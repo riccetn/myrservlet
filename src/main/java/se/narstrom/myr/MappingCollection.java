@@ -7,9 +7,9 @@ import java.util.function.Function;
 
 public final class MappingCollection<R, E> extends AbstractCollection<R> {
 	private final Collection<E> wrapped;
-	
+
 	private final Function<E, R> mapper;
-	
+
 	public MappingCollection(final Collection<E> wrapped, final Function<E, R> mapper) {
 		this.wrapped = wrapped;
 		this.mapper = mapper;

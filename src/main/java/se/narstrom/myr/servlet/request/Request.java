@@ -359,6 +359,21 @@ public class Request implements HttpServletRequest {
 	}
 
 
+	// 5.3. HTTP Trailers
+	// ==================
+	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#http-trailers
+	@Override
+	public boolean isTrailerFieldsReady() {
+		return request.isTrailerFieldsReady();
+	}
+
+	@Override
+	public Map<String, String> getTrailerFields() {
+		final Map<String, String> trailers = request.getTrailerFields();
+		return trailers;
+	}
+
+
 	// 7. Sessions
 	// ===========
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#sessions

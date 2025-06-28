@@ -2,6 +2,7 @@ package se.narstrom.myr.http;
 
 import java.io.InputStream;
 import java.util.Enumeration;
+import java.util.Map;
 
 import jakarta.servlet.ServletConnection;
 
@@ -26,4 +27,6 @@ public interface HttpRequest {
 	public int getServerPort();
 	public ServletConnection getServletConnection();
 	public boolean isSecure();
+	public boolean isTrailerFieldsReady();
+	public Map<String, String> getTrailerFields();
 }

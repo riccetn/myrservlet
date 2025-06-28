@@ -58,4 +58,8 @@ public final class Fields {
 		final Collection<String> stringKeys = new MappingCollection<>(map.keySet(), Object::toString);
 		return Collections.enumeration(stringKeys);
 	}
+
+	public Map<FieldName, List<FieldValue>> getFieldMap() {
+		return Collections.unmodifiableMap(map);
+	}
 }
