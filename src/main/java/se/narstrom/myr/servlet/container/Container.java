@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import jakarta.servlet.ServletException;
@@ -13,6 +14,7 @@ import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.http.exceptions.BadRequest;
 import se.narstrom.myr.http.exceptions.HttpStatusCodeException;
 import se.narstrom.myr.http.exceptions.NotFound;
+import se.narstrom.myr.servlet.async.AsyncHandler;
 import se.narstrom.myr.servlet.context.Context;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
@@ -61,9 +63,22 @@ public final class Container implements AutoCloseable {
 			throw new NotFound("No context");
 		}
 
+		final String path = uri.substring(contextUri.length());
+
 		logger.log(Level.INFO, "Dispatching: {0} to context {1}", new Object[] { uri, context.getServletContextName() });
 
-		context.service(request, response);
+		final AsyncHandler async = new AsyncHandler(context, path, request, response);
+		try {
+			async.service();
+		} catch (final ServletException | IOException ex) {
+			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception from dispatch in context ''{0}''");
+			logRecord.setParameters(new Object[] { context.getServletContextName() });
+			logRecord.setThrown(ex);
+			logger.log(logRecord);
+
+			if (!response.isCommitted())
+				context.handleException(request, response, ex);
+		}
 		response.close();
 	}
 

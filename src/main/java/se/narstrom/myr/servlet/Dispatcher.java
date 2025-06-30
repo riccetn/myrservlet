@@ -12,6 +12,7 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.UnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import se.narstrom.myr.servlet.async.AsyncRequest;
 import se.narstrom.myr.servlet.context.Context;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
@@ -50,10 +51,15 @@ public final class Dispatcher implements RequestDispatcher {
 	}
 
 	public void request(final Request request, final Response response) throws ServletException, IOException {
-		logger.log(Level.INFO, "DISPATCH for servlet ''{0}, asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
+		logger.log(Level.INFO, "DISPATCH for servlet ''{0}'', asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
 		request.setDispatcher(this);
 		response.setContext(context);
 		dispatch(request, response);
+	}
+
+	public void async(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
+		logger.log(Level.INFO, "ASYNC for servlet ''{0}'', asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
+		dispatch(new AsyncRequest((HttpServletRequest) request, this), (HttpServletResponse) response);
 	}
 
 	@Override

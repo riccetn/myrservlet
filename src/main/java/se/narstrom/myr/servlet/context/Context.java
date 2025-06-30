@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import jakarta.servlet.Filter;
@@ -464,32 +463,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		}
 	}
 
-	public void service(final Request request, final Response response) {
-		final String uri = request.getRequestURI();
-		if (!uri.startsWith(contextPath))
-			throw new IllegalArgumentException("This request is not for this context: " + uri + " is not in " + contextPath);
-
-		String path = uri.substring(contextPath.length());
-		final String query = request.getQueryString();
-		if (query != null)
-			path += "?" + query;
-
-		final Dispatcher dispatcher = getRequestDispatcher(path);
-
-		try {
-			dispatcher.request(request, response);
-		} catch (final ServletException | IOException ex) {
-			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception from dispatch in context ''{0}''");
-			logRecord.setParameters(new Object[] { contextName });
-			logRecord.setThrown(ex);
-			logger.log(logRecord);
-
-			if (!response.isCommitted())
-				handleException(request, response, ex);
-		}
-	}
-
-	private void handleException(final Request request, final Response response, final Throwable ex) {
+	public void handleException(final Request request, final Response response, final Throwable ex) {
 		try {
 			Class<?> exceptionClass = ex.getClass();
 			String path = null;

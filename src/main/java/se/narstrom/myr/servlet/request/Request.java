@@ -44,6 +44,7 @@ import se.narstrom.myr.mime.MediaType;
 import se.narstrom.myr.servlet.Attributes;
 import se.narstrom.myr.servlet.Dispatcher;
 import se.narstrom.myr.servlet.Parameters;
+import se.narstrom.myr.servlet.async.AsyncHandler;
 import se.narstrom.myr.servlet.context.Context;
 import se.narstrom.myr.servlet.session.Session;
 import se.narstrom.myr.servlet.session.SessionIdSource;
@@ -67,6 +68,42 @@ public class Request implements HttpServletRequest {
 
 	public void setDispatcher(final Dispatcher dispatcher) {
 		this.dispatcher = dispatcher;
+	}
+
+	// 2.3.3.3. Asynchronous processing
+	// ================================
+	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#asynchronous-processing
+	private AsyncHandler asyncHandler;
+
+	public void setAsyncHandler(final AsyncHandler handler) {
+		this.asyncHandler = handler;
+	}
+
+	@Override
+	public AsyncContext startAsync() throws IllegalStateException {
+		asyncHandler.startAsync();
+		return asyncHandler;
+	}
+
+	@Override
+	public AsyncContext startAsync(final ServletRequest servletRequest, final ServletResponse servletResponse) throws IllegalStateException {
+		asyncHandler.startAsync(servletRequest, servletResponse);
+		return asyncHandler;
+	}
+
+	@Override
+	public boolean isAsyncStarted() {
+		return asyncHandler.isAsyncStarted();
+	}
+
+	@Override
+	public boolean isAsyncSupported() {
+		return true;
+	}
+
+	@Override
+	public AsyncContext getAsyncContext() {
+		return asyncHandler;
 	}
 
 
@@ -695,30 +732,5 @@ public class Request implements HttpServletRequest {
 	@Override
 	public boolean isSecure() {
 		return request.isSecure();
-	}
-
-	@Override
-	public AsyncContext startAsync() throws IllegalStateException {
-		throw new IllegalStateException("No async");
-	}
-
-	@Override
-	public AsyncContext startAsync(ServletRequest servletRequest, ServletResponse servletResponse) throws IllegalStateException {
-		throw new IllegalStateException("No async");
-	}
-
-	@Override
-	public boolean isAsyncStarted() {
-		throw new IllegalStateException("No async");
-	}
-
-	@Override
-	public boolean isAsyncSupported() {
-		throw new IllegalStateException("No async");
-	}
-
-	@Override
-	public AsyncContext getAsyncContext() {
-		throw new IllegalStateException("No async");
 	}
 }
