@@ -1,6 +1,5 @@
 package se.narstrom.myr.servlet.context;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -34,9 +33,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.SessionTrackingMode;
-import jakarta.servlet.UnavailableException;
 import jakarta.servlet.descriptor.JspConfigDescriptor;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.MappingMatch;
 import se.narstrom.myr.http.v1.RequestTarget;
 import se.narstrom.myr.servlet.Attributes;
@@ -46,8 +43,6 @@ import se.narstrom.myr.servlet.InitParameters;
 import se.narstrom.myr.servlet.Mapping;
 import se.narstrom.myr.servlet.MyrFilterRegistration;
 import se.narstrom.myr.servlet.Registration;
-import se.narstrom.myr.servlet.request.Request;
-import se.narstrom.myr.servlet.response.Response;
 import se.narstrom.myr.servlet.session.SessionManager;
 
 // 4. Servlet Context
@@ -463,52 +458,20 @@ public final class Context implements AutoCloseable, ServletContext {
 		}
 	}
 
-	public void handleException(final Request request, final Response response, final Throwable ex) {
-		try {
-			Class<?> exceptionClass = ex.getClass();
-			String path = null;
-			while (exceptionClass != Object.class) {
-				path = exceptionMappings.get(exceptionClass.getName());
-				if (path != null)
-					break;
-				exceptionClass = exceptionClass.getSuperclass();
-			}
-
-			if (path != null) {
-				getRequestDispatcher(path).error(request, response, ex, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-				return;
-			}
-
-			switch (ex) {
-				case UnavailableException uex when !uex.isPermanent() -> handleError(request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Service Temporary Unavailable");
-				case UnavailableException _ -> handleError(request, response, HttpServletResponse.SC_NOT_FOUND, "Not Found");
-				case ServletException sex -> handleException(request, response, sex.getRootCause());
-				case FileNotFoundException _ -> handleError(request, response, HttpServletResponse.SC_NOT_FOUND, "Not Found");
-				default -> handleError(request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
-			}
-		} catch (final ServletException | IOException ex2) {
-			logger.log(Level.SEVERE, "Error in error-page dispatch", ex2);
+	public String getExceptionMapping(final Throwable ex) {
+		Class<?> exceptionClass = ex.getClass();
+		String path = null;
+		while (exceptionClass != Object.class) {
+			path = exceptionMappings.get(exceptionClass.getName());
+			if (path != null)
+				return path;
+			exceptionClass = exceptionClass.getSuperclass();
 		}
+		return null;
 	}
 
-	private void handleError(final Request request, final Response response, final int status, final String message) {
-		try {
-			final String path = errorMappings.get(status);
-
-			if (path == null) {
-				response.reset();
-				response.setStatus(status);
-				response.setContentType("text/plain");
-				response.setContentLength(message.length());
-				response.getWriter().write(message);
-				response.flushBuffer();
-				return;
-			}
-
-			getRequestDispatcher(path).error(request, response, null, status);
-		} catch (final ServletException | IOException ex) {
-			logger.log(Level.SEVERE, "Error in error-page dispatch", ex);
-		}
+	public String getErrorMapping(final int status) {
+		return errorMappings.get(status);
 	}
 
 	@Override

@@ -1,5 +1,6 @@
 package se.narstrom.myr.servlet.container;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -9,6 +10,8 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import jakarta.servlet.ServletException;
+import jakarta.servlet.UnavailableException;
+import jakarta.servlet.http.HttpServletResponse;
 import se.narstrom.myr.http.HttpRequest;
 import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.http.exceptions.BadRequest;
@@ -77,9 +80,52 @@ public final class Container implements AutoCloseable {
 			logger.log(logRecord);
 
 			if (!response.isCommitted())
-				context.handleException(request, response, ex);
+				handleException(context, request, response, ex);
 		}
 		response.close();
+	}
+
+	private void handleException(final Context context, final Request request, final Response response, final Throwable ex) {
+		try {
+			final String path = context.getExceptionMapping(ex);
+
+			if (path != null) {
+				context.getRequestDispatcher(path).error(request, response, ex, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+				return;
+			}
+
+			switch (ex) {
+				case UnavailableException uex when !uex.isPermanent() -> handleError(context, request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Service Temporary Unavailable");
+				case UnavailableException _ -> handleError(context, request, response, HttpServletResponse.SC_NOT_FOUND, "Not Found");
+				case ServletException sex -> handleException(context, request, response, sex.getRootCause());
+				case FileNotFoundException _ -> handleError(context, request, response, HttpServletResponse.SC_NOT_FOUND, "Not Found");
+				default -> handleError(context, request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
+			}
+		} catch (final ServletException | IOException ex2) {
+			logger.log(Level.SEVERE, "Error in error-page dispatch", ex2);
+		}
+	}
+
+	private void handleError(final Context context, final Request request, final Response response, final int status, final String message) {
+		try {
+			final String path = context.getErrorMapping(status);
+
+			if (path == null) {
+				response.reset();
+				response.setStatus(status);
+				response.setContentType("text/plain");
+				response.setContentLength(message.length());
+				response.getWriter().write(message);
+				response.flushBuffer();
+				return;
+			}
+
+			context.getRequestDispatcher(path).error(request, response, null, status);
+		} catch (final ServletException |
+
+				IOException ex) {
+			logger.log(Level.SEVERE, "Error in error-page dispatch", ex);
+		}
 	}
 
 	public void addContext(final Context context) {
