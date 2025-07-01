@@ -44,6 +44,7 @@ import se.narstrom.myr.servlet.Mapping;
 import se.narstrom.myr.servlet.MyrFilterRegistration;
 import se.narstrom.myr.servlet.Registration;
 import se.narstrom.myr.servlet.session.SessionManager;
+import se.narstrom.myr.uri.Query;
 
 // 4. Servlet Context
 // ==================
@@ -627,7 +628,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 		logger.log(Level.INFO, "Creating Dispatcher for uri {0} to servlet {1}", new Object[] { uri, servletName });
 
-		return new Dispatcher(this, mapping, registrations.get(servletName));
+		return new Dispatcher(this, mapping, registrations.get(servletName), target.query());
 	}
 
 	@Override
@@ -636,7 +637,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		if (registration == null)
 			return null;
 		else
-			return new Dispatcher(this, null, registrations.get(name));
+			return new Dispatcher(this, null, registrations.get(name), new Query(""))	;
 	}
 
 	@Override

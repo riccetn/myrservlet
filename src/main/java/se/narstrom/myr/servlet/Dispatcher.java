@@ -16,6 +16,7 @@ import se.narstrom.myr.servlet.async.AsyncRequest;
 import se.narstrom.myr.servlet.context.Context;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
+import se.narstrom.myr.uri.Query;
 
 public final class Dispatcher implements RequestDispatcher {
 	private static final Logger logger = Logger.getLogger(Dispatcher.class.getName());
@@ -26,12 +27,15 @@ public final class Dispatcher implements RequestDispatcher {
 
 	private final Registration registration;
 
+	private final Query query;
+
 	private HttpServletResponse response = null;;
 
-	public Dispatcher(final Context context, final Mapping mapping, final Registration registration) {
+	public Dispatcher(final Context context, final Mapping mapping, final Registration registration, final Query query) {
 		this.context = context;
 		this.mapping = mapping;
 		this.registration = registration;
+		this.query = query;
 	}
 
 	Registration getRegistration() {
@@ -59,7 +63,7 @@ public final class Dispatcher implements RequestDispatcher {
 
 	public void async(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
 		logger.log(Level.INFO, "ASYNC for servlet ''{0}'', asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
-		dispatch(new AsyncRequest((HttpServletRequest) request, this), (HttpServletResponse) response);
+		dispatch(new AsyncRequest((HttpServletRequest) request, this, query), (HttpServletResponse) response);
 	}
 
 	@Override

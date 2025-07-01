@@ -20,6 +20,9 @@ public final class ForwardRequest extends HttpServletRequestWrapper {
 
 	@Override
 	public HttpServletMapping getHttpServletMapping() {
-		return dispatcher.getMapping();
+		HttpServletMapping mapping = dispatcher.getMapping();
+		if(mapping == null)
+			mapping = super.getHttpServletMapping();
+		return mapping;
 	}
 }
