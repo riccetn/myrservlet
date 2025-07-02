@@ -137,7 +137,7 @@ public final class Deployer {
 			}
 			registration.addMapping(webServlet.urlPatterns());
 			registration.addMapping(webServlet.value());
-			// registration.setLoadOnStartup(webServlet.loadOnStartup());
+			registration.setAsyncSupported(webServlet.asyncSupported());
 		}
 	}
 }

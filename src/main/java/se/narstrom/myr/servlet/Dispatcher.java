@@ -38,7 +38,7 @@ public final class Dispatcher implements RequestDispatcher {
 		this.query = query;
 	}
 
-	Registration getRegistration() {
+	public Registration getRegistration() {
 		return registration;
 	}
 

@@ -1,6 +1,7 @@
 package se.narstrom.myr.servlet.async;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -31,7 +32,7 @@ public final class AsyncHandler implements AsyncContext {
 	private ServletRequest currentRequest;
 	private ServletResponse currentResponse;
 
-	private long timeout = 0L;
+	private long timeout = 30_000L;
 
 	public AsyncHandler(final ServletContext context, final String path, final Request request, final Response response) {
 		this.context = context;
@@ -81,7 +82,7 @@ public final class AsyncHandler implements AsyncContext {
 				assert state == AsyncState.COMPLATED;
 				break;
 			}
-		} catch(final InterruptedException ex) {
+		} catch (final InterruptedException ex) {
 			return;
 		} finally {
 			lock.unlock();

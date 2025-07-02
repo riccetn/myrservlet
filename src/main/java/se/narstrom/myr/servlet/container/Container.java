@@ -95,22 +95,25 @@ public final class Container implements AutoCloseable {
 			}
 
 			switch (ex) {
-				case UnavailableException uex when !uex.isPermanent() -> handleError(context, request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Service Temporary Unavailable");
-				case UnavailableException _ -> handleError(context, request, response, HttpServletResponse.SC_NOT_FOUND, "Not Found");
+				case UnavailableException uex when !uex.isPermanent() -> handleError(context, request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, ex);
+				case UnavailableException _ -> handleError(context, request, response, HttpServletResponse.SC_NOT_FOUND, ex);
 				case ServletException sex -> handleException(context, request, response, sex.getRootCause());
-				case FileNotFoundException _ -> handleError(context, request, response, HttpServletResponse.SC_NOT_FOUND, "Not Found");
-				default -> handleError(context, request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
+				case FileNotFoundException _ -> handleError(context, request, response, HttpServletResponse.SC_NOT_FOUND, ex);
+				default -> handleError(context, request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ex);
 			}
 		} catch (final ServletException | IOException ex2) {
 			logger.log(Level.SEVERE, "Error in error-page dispatch", ex2);
 		}
 	}
 
-	private void handleError(final Context context, final Request request, final Response response, final int status, final String message) {
+	private void handleError(final Context context, final Request request, final Response response, final int status, final Throwable ex) {
 		try {
 			final String path = context.getErrorMapping(status);
 
 			if (path == null) {
+				String message =  ex.getMessage();
+				if(message == null)
+					message = "Unknown Error";
 				response.reset();
 				response.setStatus(status);
 				response.setContentType("text/plain");
@@ -120,11 +123,9 @@ public final class Container implements AutoCloseable {
 				return;
 			}
 
-			context.getRequestDispatcher(path).error(request, response, null, status);
-		} catch (final ServletException |
-
-				IOException ex) {
-			logger.log(Level.SEVERE, "Error in error-page dispatch", ex);
+			context.getRequestDispatcher(path).error(request, response, ex, status);
+		} catch (final ServletException|IOException ex2) {
+			logger.log(Level.SEVERE, "Error in error-page dispatch", ex2);
 		}
 	}
 

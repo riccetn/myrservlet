@@ -68,7 +68,7 @@ public final class Registration implements ServletRegistration.Dynamic {
 		return servlet;
 	}
 
-	boolean isAsyncSupported() {
+	public boolean isAsyncSupported() {
 		return asyncSupported;
 	}
 

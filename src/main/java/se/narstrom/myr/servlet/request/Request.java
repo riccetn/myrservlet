@@ -81,12 +81,16 @@ public class Request implements HttpServletRequest {
 
 	@Override
 	public AsyncContext startAsync() throws IllegalStateException {
+		if (!isAsyncSupported())
+			throw new IllegalStateException();
 		asyncHandler.startAsync();
 		return asyncHandler;
 	}
 
 	@Override
 	public AsyncContext startAsync(final ServletRequest servletRequest, final ServletResponse servletResponse) throws IllegalStateException {
+		if (!isAsyncSupported())
+			throw new IllegalStateException();
 		asyncHandler.startAsync(servletRequest, servletResponse);
 		return asyncHandler;
 	}
@@ -98,7 +102,7 @@ public class Request implements HttpServletRequest {
 
 	@Override
 	public boolean isAsyncSupported() {
-		return true;
+		return dispatcher.getRegistration().isAsyncSupported();
 	}
 
 	@Override
