@@ -43,7 +43,7 @@ public final class Registration implements ServletRegistration.Dynamic {
 		this.servlet = servlet;
 	}
 
-	void init() throws ServletException, ClassNotFoundException {
+	public void init() throws ServletException, ClassNotFoundException {
 		if (inited)
 			return;
 
@@ -64,7 +64,7 @@ public final class Registration implements ServletRegistration.Dynamic {
 		servlet.destroy();
 	}
 
-	Servlet getServlet() {
+	public Servlet getServlet() {
 		return servlet;
 	}
 

@@ -38,11 +38,11 @@ import jakarta.servlet.http.MappingMatch;
 import se.narstrom.myr.http.v1.RequestTarget;
 import se.narstrom.myr.servlet.Attributes;
 import se.narstrom.myr.servlet.CanonicalizedPath;
-import se.narstrom.myr.servlet.Dispatcher;
 import se.narstrom.myr.servlet.InitParameters;
 import se.narstrom.myr.servlet.Mapping;
 import se.narstrom.myr.servlet.MyrFilterRegistration;
 import se.narstrom.myr.servlet.Registration;
+import se.narstrom.myr.servlet.dispatcher.Dispatcher;
 import se.narstrom.myr.servlet.session.SessionManager;
 import se.narstrom.myr.uri.Query;
 

@@ -1,7 +1,6 @@
 package se.narstrom.myr.servlet.async;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -13,7 +12,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
-import se.narstrom.myr.servlet.Dispatcher;
+import se.narstrom.myr.servlet.dispatcher.Dispatcher;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
 
@@ -56,7 +55,7 @@ public final class AsyncHandler implements AsyncContext {
 				switch (state) {
 					case REDISPATCHING -> state = AsyncState.DISPATCHING;
 					case ASYNC_STARTED -> state = AsyncState.ASYNC_WAIT;
-					case DISPATCHED, COMPLETING -> state = AsyncState.COMPLATED;
+					case DISPATCHED, COMPLETING -> state = AsyncState.COMPLETED;
 					default -> throw new IllegalStateException("Async state: " + state);
 				}
 
@@ -79,7 +78,7 @@ public final class AsyncHandler implements AsyncContext {
 					continue;
 				}
 
-				assert state == AsyncState.COMPLATED;
+				assert state == AsyncState.COMPLETED;
 				break;
 			}
 		} catch (final InterruptedException ex) {
@@ -140,9 +139,12 @@ public final class AsyncHandler implements AsyncContext {
 	@Override
 	public void dispatch() {
 		final String path;
-		if (currentRequest instanceof HttpServletRequest httpRequest)
-			path = httpRequest.getRequestURI();
-		else
+		if (currentRequest instanceof HttpServletRequest httpRequest) {
+			final String uri = httpRequest.getRequestURI();
+			final String contextPath = httpRequest.getContextPath();
+			assert uri.startsWith(contextPath);
+			path = uri.substring(contextPath.length());
+		} else
 			path = this.path;
 		dispatch(path);
 	}
@@ -175,7 +177,7 @@ public final class AsyncHandler implements AsyncContext {
 		try {
 			state = switch (state) {
 				case ASYNC_STARTED -> AsyncState.COMPLETING;
-				case ASYNC_WAIT -> AsyncState.COMPLATED;
+				case ASYNC_WAIT -> AsyncState.COMPLETED;
 				default -> throw new IllegalStateException("Async state " + state);
 			};
 			cond.signalAll();

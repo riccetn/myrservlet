@@ -1,4 +1,4 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.servlet.dispatcher;
 
 import java.io.IOException;
 import java.util.logging.Level;
@@ -12,6 +12,8 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.UnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import se.narstrom.myr.servlet.Mapping;
+import se.narstrom.myr.servlet.Registration;
 import se.narstrom.myr.servlet.async.AsyncRequest;
 import se.narstrom.myr.servlet.context.Context;
 import se.narstrom.myr.servlet.request.Request;
@@ -54,6 +56,10 @@ public final class Dispatcher implements RequestDispatcher {
 		return this.response;
 	}
 
+	public Query getQuery() {
+		return this.query;
+	}
+
 	public void request(final Request request, final Response response) throws ServletException, IOException {
 		logger.log(Level.INFO, "DISPATCH for servlet ''{0}'', asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
 		request.setDispatcher(this);
@@ -63,7 +69,7 @@ public final class Dispatcher implements RequestDispatcher {
 
 	public void async(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
 		logger.log(Level.INFO, "ASYNC for servlet ''{0}'', asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
-		dispatch(new AsyncRequest((HttpServletRequest) request, this, query), (HttpServletResponse) response);
+		dispatch(new AsyncRequest((HttpServletRequest) request, this), (HttpServletResponse) response);
 	}
 
 	@Override
@@ -75,7 +81,7 @@ public final class Dispatcher implements RequestDispatcher {
 
 	@Override
 	public void include(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
-		logger.log(Level.INFO, "INCLUDE servlet ''{0}''", registration.getName());
+		logger.log(Level.INFO, "INCLUDE to servlet ''{0}''", registration.getName());
 		dispatch(new IncludeRequest((HttpServletRequest) request), new IncludeResponse((HttpServletResponse) response));
 	}
 

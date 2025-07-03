@@ -1,4 +1,4 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.servlet.dispatcher;
 
 import java.nio.charset.Charset;
 import java.util.Locale;
