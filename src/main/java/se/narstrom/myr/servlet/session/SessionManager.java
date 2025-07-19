@@ -47,4 +47,18 @@ public final class SessionManager {
 	private String generateSessionId() {
 		return Long.toHexString(random.nextLong());
 	}
+
+	public String changeSessionId(final Session session, final String contextName, final String address) {
+		final SessionKey oldKey = new SessionKey(contextName, address, session.getId());
+		if (!sessions.remove(oldKey, session))
+			throw new IllegalStateException("Session not avaiable under old id");
+
+		final String newSessionId = generateSessionId();
+		session.setId(newSessionId);
+
+		final SessionKey newKey = new SessionKey(contextName, address, newSessionId);
+		sessions.put(newKey, session);
+
+		return newSessionId;
+	}
 }

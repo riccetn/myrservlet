@@ -5,6 +5,7 @@ import java.io.OutputStream;
 import java.util.Collection;
 
 public interface HttpResponse {
+	public void commit() throws IOException;
 	public void addHeader(final String nameString, final String valueString);
 	public OutputStream getOutputStream() throws IOException;
 	public int getStatus();

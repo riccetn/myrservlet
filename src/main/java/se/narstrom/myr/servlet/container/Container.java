@@ -94,10 +94,15 @@ public final class Container implements AutoCloseable {
 				return;
 			}
 
+			if (ex instanceof ServletException sex) {
+				final Throwable cause = sex.getRootCause();
+				if (cause != null)
+					handleException(context, request, response, sex.getRootCause());
+			}
+
 			switch (ex) {
 				case UnavailableException uex when !uex.isPermanent() -> handleError(context, request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, ex);
 				case UnavailableException _ -> handleError(context, request, response, HttpServletResponse.SC_NOT_FOUND, ex);
-				case ServletException sex -> handleException(context, request, response, sex.getRootCause());
 				case FileNotFoundException _ -> handleError(context, request, response, HttpServletResponse.SC_NOT_FOUND, ex);
 				default -> handleError(context, request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ex);
 			}
@@ -111,8 +116,8 @@ public final class Container implements AutoCloseable {
 			final String path = context.getErrorMapping(status);
 
 			if (path == null) {
-				String message =  ex.getMessage();
-				if(message == null)
+				String message = ex.getMessage();
+				if (message == null)
 					message = "Unknown Error";
 				response.reset();
 				response.setStatus(status);
@@ -124,7 +129,7 @@ public final class Container implements AutoCloseable {
 			}
 
 			context.getRequestDispatcher(path).error(request, response, ex, status);
-		} catch (final ServletException|IOException ex2) {
+		} catch (final ServletException | IOException ex2) {
 			logger.log(Level.SEVERE, "Error in error-page dispatch", ex2);
 		}
 	}

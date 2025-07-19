@@ -6,16 +6,15 @@ import java.nio.ByteBuffer;
 
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
-import se.narstrom.myr.http.HttpResponse;
 
 public final class OuputBuffer extends ServletOutputStream {
-	private final HttpResponse response;
+	private final Response response;
 
 	private ByteBuffer buffer;
 
 	private OutputStream out;
 
-	public OuputBuffer(final HttpResponse response) {
+	public OuputBuffer(final Response response) {
 		this.buffer = ByteBuffer.allocate(1500);
 		this.response = response;
 	}
@@ -37,7 +36,8 @@ public final class OuputBuffer extends ServletOutputStream {
 	@Override
 	public void flush() throws IOException {
 		if (out == null) {
-			out = response.getOutputStream();
+			response.commit();
+			out = response.getRealOutputStream();
 		}
 		buffer.flip();
 		if (buffer.remaining() > 0)

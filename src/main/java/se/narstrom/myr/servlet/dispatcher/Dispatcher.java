@@ -31,6 +31,8 @@ public final class Dispatcher implements RequestDispatcher {
 
 	private final Query query;
 
+	private HttpServletRequest request = null;
+
 	private HttpServletResponse response = null;;
 
 	public Dispatcher(final Context context, final Mapping mapping, final Registration registration, final Query query) {
@@ -52,6 +54,10 @@ public final class Dispatcher implements RequestDispatcher {
 		return mapping;
 	}
 
+	public HttpServletRequest getRequest() {
+		return this.request;
+	}
+
 	public HttpServletResponse getResponse() {
 		return this.response;
 	}
@@ -63,7 +69,7 @@ public final class Dispatcher implements RequestDispatcher {
 	public void request(final Request request, final Response response) throws ServletException, IOException {
 		logger.log(Level.INFO, "DISPATCH for servlet ''{0}'', asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
 		request.setDispatcher(this);
-		response.setContext(context);
+		response.setDispatcher(this);
 		dispatch(request, response);
 	}
 
@@ -105,6 +111,7 @@ public final class Dispatcher implements RequestDispatcher {
 	private void dispatch(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		Thread.currentThread().setContextClassLoader(context.getClassLoader());
 
+		this.request = request;
 		this.response = response;
 
 		try {

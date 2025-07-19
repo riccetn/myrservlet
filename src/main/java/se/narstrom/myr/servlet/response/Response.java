@@ -1,6 +1,7 @@
 package se.narstrom.myr.servlet.response;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
@@ -21,9 +22,10 @@ import java.util.function.Supplier;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.mime.MediaType;
-import se.narstrom.myr.servlet.context.Context;
+import se.narstrom.myr.servlet.dispatcher.Dispatcher;
 import se.narstrom.myr.util.Result;
 
 // 5. The Response
@@ -32,23 +34,35 @@ import se.narstrom.myr.util.Result;
 public class Response implements HttpServletResponse {
 	private final HttpResponse response;
 
-	private Context context;
+	private Dispatcher dispatcher;
 
 	private Result<Charset, UnsupportedEncodingException> encoding = null;
 
 	public Response(final HttpResponse response) {
 		this.response = response;
-		this.buffer = new OuputBuffer(response);
+		this.buffer = new OuputBuffer(this);
 	}
 
-	public void setContext(final Context context) {
-		this.context = context;
+	public void setDispatcher(final Dispatcher dispatcher) {
+		this.dispatcher = dispatcher;
 	}
 
 	public void close() throws IOException {
 		if (writer != null)
 			writer.flush();
 		buffer.close();
+	}
+
+	public void commit() throws IOException {
+		final HttpSession session = dispatcher.getRequest().getSession(false);
+		if (session != null && session.isNew()) {
+			addCookie(new Cookie("JSESSIONID", session.getId()));
+		}
+		response.commit();
+	}
+
+	OutputStream getRealOutputStream() throws IOException {
+		return response.getOutputStream();
 	}
 
 	// 5.1 Buffering
@@ -343,7 +357,7 @@ public class Response implements HttpServletResponse {
 	public void setLocale(final Locale locale) {
 		setHeader("content-language", locale.toLanguageTag());
 		if (encoding == null) {
-			final Charset charset = context.getLocaleEncoding(locale);
+			final Charset charset = dispatcher.getContext().getLocaleEncoding(locale);
 			if (charset != null)
 				setCharacterEncoding(charset);
 		}

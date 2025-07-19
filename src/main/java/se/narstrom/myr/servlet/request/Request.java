@@ -447,8 +447,12 @@ public class Request implements HttpServletRequest {
 		if (session == null)
 			throw new IllegalStateException("No session");
 
-		// TODO: Implement this
-		throw new UnsupportedOperationException();
+		final HttpServletResponse response = dispatcher.getResponse();
+		if (response.isCommitted())
+			throw new IllegalStateException("Already commited");
+
+		sessionId = getServletContext().changeSessionId(session, getRemoteAddr());
+		return sessionId;
 	}
 
 	@Override
@@ -514,7 +518,6 @@ public class Request implements HttpServletRequest {
 			final HttpServletResponse response = dispatcher.getResponse();
 			if (session == null && create && !response.isCommitted()) {
 				session = sessionManager.createSession(contextName, remoteAddr);
-				response.addCookie(new Cookie("JSESSIONID", session.getId()));
 			}
 		}
 	}

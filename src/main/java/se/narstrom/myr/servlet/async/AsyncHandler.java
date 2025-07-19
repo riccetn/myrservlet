@@ -1,11 +1,17 @@
 package se.narstrom.myr.servlet.async;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import jakarta.servlet.AsyncContext;
+import jakarta.servlet.AsyncEvent;
 import jakarta.servlet.AsyncListener;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
@@ -17,8 +23,12 @@ import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
 
 public final class AsyncHandler implements AsyncContext {
+	private final Logger logger = Logger.getLogger("AsyncHandler");
+
 	private final Lock lock = new ReentrantLock();
 	private final Condition cond = lock.newCondition();
+
+	private final List<AsyncListener> listeners = new CopyOnWriteArrayList<>();
 
 	private AsyncState state = AsyncState.DISPATCHING;
 
@@ -73,7 +83,10 @@ public final class AsyncHandler implements AsyncContext {
 
 				if (state == AsyncState.ASYNC_WAIT) {
 					while (state == AsyncState.ASYNC_WAIT) {
-						cond.await();
+						if (!cond.await(timeout, TimeUnit.MILLISECONDS)) {
+							fireOnTimeout();
+							return;
+						}
 					}
 					continue;
 				}
@@ -193,7 +206,7 @@ public final class AsyncHandler implements AsyncContext {
 
 	@Override
 	public void addListener(final AsyncListener listener) {
-		throw new UnsupportedOperationException("Not implemented");
+		listeners.add(listener);
 	}
 
 	@Override
@@ -203,7 +216,11 @@ public final class AsyncHandler implements AsyncContext {
 
 	@Override
 	public <T extends AsyncListener> T createListener(final Class<T> clazz) throws ServletException {
-		throw new UnsupportedOperationException("Not implemented");
+		try {
+			return clazz.getConstructor().newInstance();
+		} catch (final ReflectiveOperationException ex) {
+			throw new ServletException(ex);
+		}
 	}
 
 	@Override
@@ -223,6 +240,23 @@ public final class AsyncHandler implements AsyncContext {
 			return timeout;
 		} finally {
 			lock.unlock();
+		}
+	}
+
+	private void fireOnTimeout() throws ServletException {
+		lock.unlock();
+		try {
+			final AsyncEvent event = new AsyncEvent(this, currentRequest, currentResponse);
+			for (final AsyncListener listener : listeners) {
+				try {
+					listener.onTimeout(event);
+				} catch (final IOException ex) {
+					logger.log(Level.SEVERE, "Error in Event handler for event: " + event, ex);
+					throw new ServletException("Async timeout", ex);
+				}
+			}
+		} finally {
+			lock.lock();
 		}
 	}
 }

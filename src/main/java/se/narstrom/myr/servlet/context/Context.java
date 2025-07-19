@@ -34,6 +34,9 @@ import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.SessionTrackingMode;
 import jakarta.servlet.descriptor.JspConfigDescriptor;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSessionEvent;
+import jakarta.servlet.http.HttpSessionIdListener;
 import jakarta.servlet.http.MappingMatch;
 import se.narstrom.myr.http.v1.RequestTarget;
 import se.narstrom.myr.servlet.Attributes;
@@ -43,6 +46,7 @@ import se.narstrom.myr.servlet.Mapping;
 import se.narstrom.myr.servlet.MyrFilterRegistration;
 import se.narstrom.myr.servlet.Registration;
 import se.narstrom.myr.servlet.dispatcher.Dispatcher;
+import se.narstrom.myr.servlet.session.Session;
 import se.narstrom.myr.servlet.session.SessionManager;
 import se.narstrom.myr.uri.Query;
 
@@ -277,6 +281,7 @@ public final class Context implements AutoCloseable, ServletContext {
 	// ========================================================
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#programmatically-adding-and-configuring-listeners
 	private final List<ServletContextListener> servletContextListeners = new ArrayList<>();
+	private final List<HttpSessionIdListener> sessionIdListeners = new ArrayList<>();
 
 	@Override
 	@SuppressWarnings("unchecked")
@@ -294,6 +299,7 @@ public final class Context implements AutoCloseable, ServletContext {
 	public <T extends EventListener> void addListener(final T listener) {
 		switch (listener) {
 			case ServletContextListener l -> servletContextListeners.add(l);
+			case HttpSessionIdListener l -> sessionIdListeners.add(l);
 			default -> {
 			}
 		}
@@ -314,6 +320,13 @@ public final class Context implements AutoCloseable, ServletContext {
 			return clazz.getConstructor().newInstance();
 		} catch (final ReflectiveOperationException ex) {
 			throw new ServletException(ex);
+		}
+	}
+
+	private void fireSessionIdChanged(final HttpSession session, final String newId) {
+		final HttpSessionEvent event = new HttpSessionEvent(session);
+		for (final HttpSessionIdListener listener : sessionIdListeners) {
+			listener.sessionIdChanged(event, newId);
 		}
 	}
 
@@ -432,6 +445,13 @@ public final class Context implements AutoCloseable, ServletContext {
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#sessions
 	public SessionManager getSessionManager() {
 		return sessionManager;
+	}
+
+	public String changeSessionId(final Session session, final String address) {
+		final String oldId = session.getId();
+		final String newId = sessionManager.changeSessionId(session, contextName, address);
+		fireSessionIdChanged(session, oldId);
+		return newId;
 	}
 
 
@@ -637,7 +657,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		if (registration == null)
 			return null;
 		else
-			return new Dispatcher(this, null, registrations.get(name), new Query(""))	;
+			return new Dispatcher(this, null, registrations.get(name), new Query(""));
 	}
 
 	@Override

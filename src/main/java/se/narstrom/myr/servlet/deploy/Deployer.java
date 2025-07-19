@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.EventListener;
 import java.util.List;
 import java.util.Locale;
 
@@ -25,6 +26,7 @@ import ee.jakarta.xml.ns.jakartaee.WebAppType;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.annotation.WebInitParam;
+import jakarta.servlet.annotation.WebListener;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.xml.bind.JAXB;
 import se.narstrom.myr.servlet.DefaultServlet;
@@ -105,7 +107,7 @@ public final class Deployer {
 		final ServletClassLoader classLoader = (ServletClassLoader) context.getClassLoader();
 		final Path dir = Path.of(context.getRealPath("/"), "WEB-INF", "classes");
 
-		if(!Files.isDirectory(dir))
+		if (!Files.isDirectory(dir))
 			return;
 
 		Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
@@ -138,6 +140,11 @@ public final class Deployer {
 			registration.addMapping(webServlet.urlPatterns());
 			registration.addMapping(webServlet.value());
 			registration.setAsyncSupported(webServlet.asyncSupported());
+		}
+
+		final WebListener webListener = clazz.getAnnotation(WebListener.class);
+		if (webListener != null) {
+			context.addListener((Class<? extends EventListener>) clazz);
 		}
 	}
 }
