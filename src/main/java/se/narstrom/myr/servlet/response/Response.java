@@ -5,12 +5,13 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
@@ -156,13 +157,13 @@ public class Response implements HttpServletResponse {
 
 	@Override
 	public void setDateHeader(final String name, final long millis) {
-		final ZonedDateTime datetime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault());
+		final ZonedDateTime datetime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC);
 		setHeader(name, datetime.format(DateTimeFormatter.RFC_1123_DATE_TIME));
 	}
 
 	@Override
 	public void addDateHeader(final String name, final long millis) {
-		final ZonedDateTime datetime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault());
+		final ZonedDateTime datetime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC);
 		addHeader(name, datetime.format(DateTimeFormatter.RFC_1123_DATE_TIME));
 	}
 
@@ -217,8 +218,12 @@ public class Response implements HttpServletResponse {
 			throw new IllegalStateException();
 		if (clearBuffer)
 			resetBuffer();
+
+		final URI requestUri = URI.create(dispatcher.getRequest().getRequestURL().toString());
+		final URI locationUri = requestUri.resolve(location);
+
 		setStatus(SC_FOUND);
-		setHeader("location", location);
+		setHeader("location", locationUri.toString());
 		setContentType("text/plain");
 		getWriter().write("Redirect to: " + location);
 		flushBuffer();
