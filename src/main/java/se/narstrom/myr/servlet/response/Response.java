@@ -358,6 +358,8 @@ public class Response implements HttpServletResponse {
 		setHeader("content-type", contentType);
 	}
 
+	private static final Map<Locale, Charset> DEFAULT_LOCALE_ENCODING_MAPPING = Map.of(Locale.JAPAN, Charset.forName("Shift_Jis"), Locale.JAPANESE, Charset.forName("Shift_Jis"));
+
 	@Override
 	public void setLocale(final Locale locale) {
 		setHeader("content-language", locale.toLanguageTag());
@@ -365,6 +367,8 @@ public class Response implements HttpServletResponse {
 			final Charset charset = dispatcher.getContext().getLocaleEncoding(locale);
 			if (charset != null)
 				setCharacterEncoding(charset);
+			else
+				setCharacterEncoding(DEFAULT_LOCALE_ENCODING_MAPPING.getOrDefault(locale, StandardCharsets.UTF_8));
 		}
 	}
 
