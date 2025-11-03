@@ -16,6 +16,9 @@ public record FieldValue(String value) {
 	private void validateValue(final String value) {
 		Objects.requireNonNull(value);
 
+		if(value.isEmpty())
+			return;
+
 		final char ch0 = value.charAt(0);
 		final char chl = value.charAt(value.length() - 1);
 		if (ch0 == 0x9 || ch0 == 0x20 || chl == 0x9 || chl == 0x20)

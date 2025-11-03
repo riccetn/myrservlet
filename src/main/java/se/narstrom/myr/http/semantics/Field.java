@@ -16,4 +16,8 @@ public record Field(FieldName name, FieldValue value) {
 		final FieldValue value = new FieldValue(str.substring(colonIndex + 1).trim());
 		return new Field(name, value);
 	}
+	
+	public static Field of(final String name, final String value) {
+		return new Field(new FieldName(name), new FieldValue(value));
+	}
 }

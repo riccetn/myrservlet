@@ -14,6 +14,7 @@ import se.narstrom.myr.MappingCollection;
 import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.http.semantics.FieldName;
 import se.narstrom.myr.http.semantics.FieldValue;
+import se.narstrom.myr.http.semantics.Token;
 
 public final class Http1Response implements HttpResponse {
 	private final HashMap<FieldName, ArrayList<FieldValue>> headerFields = new HashMap<>();
@@ -37,7 +38,7 @@ public final class Http1Response implements HttpResponse {
 		if (nameString == null || valueString == null)
 			return;
 
-		final FieldName name = new FieldName(nameString);
+		final FieldName name = new FieldName(false, new Token(nameString));
 		final FieldValue value = new FieldValue(valueString);
 
 		headerFields.computeIfAbsent(name, _ -> new ArrayList<>()).add(value);
@@ -111,7 +112,7 @@ public final class Http1Response implements HttpResponse {
 
 	@Override
 	public void setHeader(final String nameString, final String valueString) {
-		final FieldName name = new FieldName(nameString);
+		final FieldName name = new FieldName(false, new Token(nameString));
 		if (valueString != null) {
 			final FieldValue value = new FieldValue(valueString);
 			headerFields.put(name, new ArrayList<>(List.of(value)));
