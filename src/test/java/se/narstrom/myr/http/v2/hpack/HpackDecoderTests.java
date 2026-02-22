@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import se.narstrom.myr.http.semantics.Fields;
 
-public class HpackDecoderTest {
+public class HpackDecoderTests {
 	// C.2.1. Literal Header Field with Indexing
 	@Test
 	public void testLiteralFieldWithIndexing() {
