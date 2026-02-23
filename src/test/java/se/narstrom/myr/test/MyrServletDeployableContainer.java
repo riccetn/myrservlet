@@ -49,7 +49,7 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 
 	@Override
 	public ProtocolDescription getDefaultProtocol() {
-		return new ProtocolDescription("Servlet 6.1");
+		return new ProtocolDescription("Servlet 3.0");
 	}
 
 	@Override

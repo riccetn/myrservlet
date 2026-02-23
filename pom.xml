@@ -65,6 +65,11 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.jboss.arquillian.protocol</groupId>
+			<artifactId>arquillian-protocol-servlet</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
 			<groupId>jakarta.tck</groupId>
 			<artifactId>servlet-tck-runtime</artifactId>
 			<version>6.1.1</version>
