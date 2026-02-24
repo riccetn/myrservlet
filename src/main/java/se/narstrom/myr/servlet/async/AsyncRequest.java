@@ -1,12 +1,12 @@
 package se.narstrom.myr.servlet.async;
 
 import jakarta.servlet.DispatcherType;
-import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.ServletRequest;
 import se.narstrom.myr.servlet.dispatcher.Dispatcher;
-import se.narstrom.myr.servlet.dispatcher.DispatcherHttpRequest;
+import se.narstrom.myr.servlet.dispatcher.DispatcherRequest;
 
-public final class AsyncRequest extends DispatcherHttpRequest {
-	public AsyncRequest(final HttpServletRequest request, final Dispatcher dispatcher) {
+public final class AsyncRequest extends DispatcherRequest {
+	public AsyncRequest(final ServletRequest request, final Dispatcher dispatcher) {
 		super(request, dispatcher);
 	}
 

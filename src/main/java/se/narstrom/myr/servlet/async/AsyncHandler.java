@@ -65,7 +65,7 @@ public final class AsyncHandler implements AsyncContext {
 				switch (state) {
 					case REDISPATCHING -> state = AsyncState.DISPATCHING;
 					case ASYNC_STARTED -> state = AsyncState.ASYNC_WAIT;
-					case DISPATCHED, COMPLETING -> state = AsyncState.COMPLETED;
+					case DISPATCHED, COMPLETING, COMPLETED -> state = AsyncState.COMPLETED;
 					default -> throw new IllegalStateException("Async state: " + state);
 				}
 

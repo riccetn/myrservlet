@@ -8,12 +8,14 @@ import java.util.logging.Logger;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletRequestWrapper;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.UnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import se.narstrom.myr.servlet.Mapping;
 import se.narstrom.myr.servlet.Registration;
+import se.narstrom.myr.servlet.async.AsyncHttpRequest;
 import se.narstrom.myr.servlet.async.AsyncRequest;
 import se.narstrom.myr.servlet.context.Context;
 import se.narstrom.myr.servlet.request.Request;
@@ -31,9 +33,9 @@ public final class Dispatcher implements RequestDispatcher {
 
 	private final Query query;
 
-	private HttpServletRequest request = null;
+	private ServletRequest request = null;
 
-	private HttpServletResponse response = null;;
+	private ServletResponse response = null;;
 
 	public Dispatcher(final Context context, final Mapping mapping, final Registration registration, final Query query) {
 		this.context = context;
@@ -54,16 +56,23 @@ public final class Dispatcher implements RequestDispatcher {
 		return mapping;
 	}
 
-	public HttpServletRequest getRequest() {
+	public ServletRequest getRequest() {
 		return this.request;
 	}
 
-	public HttpServletResponse getResponse() {
+	public ServletResponse getResponse() {
 		return this.response;
 	}
 
 	public Query getQuery() {
 		return this.query;
+	}
+
+	public Request getOriginalRequest() {
+		ServletRequest request = this.request;
+		while(request instanceof ServletRequestWrapper wrapper)
+			request = wrapper.getRequest();
+		return (Request) request;
 	}
 
 	public void request(final Request request, final Response response) throws ServletException, IOException {
@@ -75,7 +84,12 @@ public final class Dispatcher implements RequestDispatcher {
 
 	public void async(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
 		logger.log(Level.INFO, "ASYNC for servlet ''{0}'', asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
-		dispatch(new AsyncRequest((HttpServletRequest) request, this), (HttpServletResponse) response);
+		final ServletRequest asyncRequest;
+		if(request instanceof HttpServletRequest httpRequest)
+			asyncRequest = new AsyncHttpRequest(httpRequest, this);
+		else
+			asyncRequest = new AsyncRequest(request, this);
+		dispatch(asyncRequest, response);
 	}
 
 	@Override
@@ -108,7 +122,7 @@ public final class Dispatcher implements RequestDispatcher {
 		dispatch(errorRequest, response);
 	}
 
-	private void dispatch(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
+	private void dispatch(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
 		Thread.currentThread().setContextClassLoader(context.getClassLoader());
 
 		this.request = request;
@@ -144,5 +158,4 @@ public final class Dispatcher implements RequestDispatcher {
 			Thread.currentThread().setContextClassLoader(null);
 		}
 	}
-
 }

@@ -447,7 +447,7 @@ public class Request implements HttpServletRequest {
 		if (session == null)
 			throw new IllegalStateException("No session");
 
-		final HttpServletResponse response = dispatcher.getResponse();
+		final ServletResponse response = dispatcher.getResponse();
 		if (response.isCommitted())
 			throw new IllegalStateException("Already commited");
 
@@ -515,7 +515,7 @@ public class Request implements HttpServletRequest {
 				session = sessionManager.findSession(key);
 			}
 
-			final HttpServletResponse response = dispatcher.getResponse();
+			final ServletResponse response = dispatcher.getResponse();
 			if (session == null && create && !response.isCommitted()) {
 				session = sessionManager.createSession(contextName, remoteAddr);
 			}

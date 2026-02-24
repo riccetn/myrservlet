@@ -20,8 +20,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import com.sun.net.httpserver.Request;
+
 import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletRequestWrapper;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import se.narstrom.myr.http.HttpResponse;
@@ -55,7 +60,11 @@ public class Response implements HttpServletResponse {
 	}
 
 	public void commit() throws IOException {
-		final HttpSession session = dispatcher.getRequest().getSession(false);
+		final ServletRequest request = dispatcher.getRequest();
+		if(!(request instanceof HttpServletRequest httpRequest)) {
+			return;
+		}
+		final HttpSession session = httpRequest.getSession(false);
 		if (session != null && session.isNew()) {
 			addCookie(new Cookie("JSESSIONID", session.getId()));
 		}
@@ -219,7 +228,7 @@ public class Response implements HttpServletResponse {
 		if (clearBuffer)
 			resetBuffer();
 
-		final URI requestUri = URI.create(dispatcher.getRequest().getRequestURL().toString());
+		final URI requestUri = URI.create(dispatcher.getOriginalRequest().getRequestURL().toString());
 		final URI locationUri = requestUri.resolve(location);
 
 		setStatus(SC_FOUND);
