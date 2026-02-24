@@ -128,9 +128,11 @@
 						<include>servlet/tck/api/jakarta_servlet/asynccontext/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/asyncevent/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/dispatchertype/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/dispatchtest/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/genericservlet/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/registration/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/requestdispatcher/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/scattributeevent/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servlet/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletconfig/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletcontext/*Tests.java</include>

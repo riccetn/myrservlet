@@ -6,7 +6,7 @@ import java.util.Enumeration;
 
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpSession;
-import se.narstrom.myr.servlet.Attributes;
+import se.narstrom.myr.servlet.attributes.Attributes;
 
 public final class Session implements HttpSession {
 	private final Attributes attributes = new Attributes();

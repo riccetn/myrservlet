@@ -27,6 +27,7 @@ import jakarta.servlet.Filter;
 import jakarta.servlet.FilterRegistration;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletContextAttributeListener;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
 import jakarta.servlet.ServletException;
@@ -39,12 +40,12 @@ import jakarta.servlet.http.HttpSessionEvent;
 import jakarta.servlet.http.HttpSessionIdListener;
 import jakarta.servlet.http.MappingMatch;
 import se.narstrom.myr.http.v1.RequestTarget;
-import se.narstrom.myr.servlet.Attributes;
 import se.narstrom.myr.servlet.CanonicalizedPath;
 import se.narstrom.myr.servlet.InitParameters;
 import se.narstrom.myr.servlet.Mapping;
 import se.narstrom.myr.servlet.MyrFilterRegistration;
 import se.narstrom.myr.servlet.Registration;
+import se.narstrom.myr.servlet.attributes.Attributes;
 import se.narstrom.myr.servlet.container.Container;
 import se.narstrom.myr.servlet.dispatcher.Dispatcher;
 import se.narstrom.myr.servlet.session.Session;
@@ -302,12 +303,12 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public <T extends EventListener> void addListener(final T listener) {
-		switch (listener) {
-			case ServletContextListener l -> servletContextListeners.add(l);
-			case HttpSessionIdListener l -> sessionIdListeners.add(l);
-			default -> {
-			}
-		}
+		if (listener instanceof ServletContextListener l)
+			servletContextListeners.add(l);
+		if (listener instanceof ServletContextAttributeListener l)
+			attributes.addAttributeListener(new ContextAttributeListener(this, l));
+		if (listener instanceof HttpSessionIdListener l)
+			sessionIdListeners.add(l);
 	}
 
 	@Override
