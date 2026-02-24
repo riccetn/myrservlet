@@ -126,6 +126,7 @@
 					<includes>
 						<include>se/narstrom/myr/servlet/**/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/asynccontext/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/asyncevent/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/dispatchertype/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/genericservlet/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/registration/*Tests.java</include>

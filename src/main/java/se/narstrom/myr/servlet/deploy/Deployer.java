@@ -30,17 +30,18 @@ import jakarta.servlet.annotation.WebListener;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.xml.bind.JAXB;
 import se.narstrom.myr.servlet.DefaultServlet;
+import se.narstrom.myr.servlet.container.Container;
 import se.narstrom.myr.servlet.context.Context;
 import se.narstrom.myr.servlet.context.ServletClassLoader;
 import se.narstrom.myr.servlet.session.SessionManager;
 
 public final class Deployer {
 
-	public static final Context deploy(final String contextPath, final Path base, final SessionManager sessionManager) throws IOException {
+	public static final Context deploy(final String contextPath, final Path base, final SessionManager sessionManager, final Container container) throws IOException {
 		final Path descriptor = base.resolve("WEB-INF/web.xml");
 		final WebAppType webApp = JAXB.unmarshal(descriptor.toFile(), WebAppType.class);
 
-		final Context context = new Context(contextPath, base, sessionManager);
+		final Context context = new Context(contextPath, base, sessionManager, container);
 
 		context.setServletContextName(webApp.getDisplayName().getFirst().getValue());
 

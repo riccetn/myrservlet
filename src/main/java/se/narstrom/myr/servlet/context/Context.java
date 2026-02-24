@@ -45,6 +45,7 @@ import se.narstrom.myr.servlet.InitParameters;
 import se.narstrom.myr.servlet.Mapping;
 import se.narstrom.myr.servlet.MyrFilterRegistration;
 import se.narstrom.myr.servlet.Registration;
+import se.narstrom.myr.servlet.container.Container;
 import se.narstrom.myr.servlet.dispatcher.Dispatcher;
 import se.narstrom.myr.servlet.session.Session;
 import se.narstrom.myr.servlet.session.SessionManager;
@@ -55,6 +56,8 @@ import se.narstrom.myr.uri.Query;
 // https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#servlet-context
 public final class Context implements AutoCloseable, ServletContext {
 	private final Logger logger;
+
+	private final Container container;
 
 	private final Path base;
 
@@ -86,10 +89,11 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	private String contextName = "Root Context";
 
-	public Context(final String contextPath, final Path base, final SessionManager sessionManager) {
+	public Context(final String contextPath, final Path base, final SessionManager sessionManager, final Container container) {
 		Objects.requireNonNull(contextPath);
 		Objects.requireNonNull(base);
 		Objects.requireNonNull(sessionManager);
+		Objects.requireNonNull(container);
 		if (!contextPath.isEmpty() && !contextPath.startsWith("/"))
 			throw new IllegalArgumentException("Invalid contextPath: " + contextPath);
 		if (contextPath.length() == 1)
@@ -102,6 +106,7 @@ public final class Context implements AutoCloseable, ServletContext {
 		this.sessionManager = sessionManager;
 		this.logger = Logger.getLogger("ServletContext:" + contextPath);
 		this.classLoader = new ServletClassLoader(this, base, getClass().getClassLoader());
+		this.container = container;
 	}
 
 
@@ -539,7 +544,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public ServletContext getContext(final String uripath) {
-		return null;
+		return container.getContext(uripath);
 	}
 
 	@Override

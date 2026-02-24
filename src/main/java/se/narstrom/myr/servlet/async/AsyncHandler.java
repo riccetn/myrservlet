@@ -2,6 +2,7 @@ package se.narstrom.myr.servlet.async;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
@@ -169,6 +170,8 @@ public final class AsyncHandler implements AsyncContext {
 
 	@Override
 	public void dispatch(final ServletContext context, final String path) {
+		Objects.requireNonNull(context);
+		Objects.requireNonNull(path);
 		lock.lock();
 		try {
 			state = switch (state) {
