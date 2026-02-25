@@ -20,6 +20,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -286,8 +287,8 @@ public final class Context implements AutoCloseable, ServletContext {
 	// 4.4.3. Programmatically Adding and Configuring Listeners
 	// ========================================================
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#programmatically-adding-and-configuring-listeners
-	private final List<ServletContextListener> servletContextListeners = new ArrayList<>();
-	private final List<HttpSessionIdListener> sessionIdListeners = new ArrayList<>();
+	private final List<ServletContextListener> servletContextListeners = new CopyOnWriteArrayList<>();
+	private final List<HttpSessionIdListener> sessionIdListeners = new CopyOnWriteArrayList<>();
 
 	@Override
 	@SuppressWarnings("unchecked")

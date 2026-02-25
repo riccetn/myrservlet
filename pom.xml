@@ -133,6 +133,11 @@
 						<include>servlet/tck/api/jakarta_servlet/registration/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/requestdispatcher/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/scattributeevent/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/scattributelistener/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/scattributelistener40/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/scevent/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/sclistener/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/sclistener40/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servlet/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletconfig/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletcontext/*Tests.java</include>
