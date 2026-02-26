@@ -1,5 +1,6 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.servlet.servlet;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -7,15 +8,21 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import jakarta.servlet.MultipartConfigElement;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import jakarta.servlet.ServletSecurityElement;
+import se.narstrom.myr.servlet.InitParameters;
 import se.narstrom.myr.servlet.context.Context;
 
-public final class Registration implements ServletRegistration.Dynamic {
+public final class MyrServletRegistration implements ServletRegistration.Dynamic {
 	private final Context context;
 
 	private final String name;
@@ -28,40 +35,65 @@ public final class Registration implements ServletRegistration.Dynamic {
 
 	private Servlet servlet;
 
-	private boolean inited = false;
+	private final AtomicBoolean inited = new AtomicBoolean(false);
+
+	private final Lock initLock = new ReentrantLock();
 
 	private boolean asyncSupported = false;
 
-	public Registration(final Context context, final String name, final String className) {
+	public MyrServletRegistration(final Context context, final String name, final String className) {
 		this.context = context;
 		this.name = name;
 		this.className = className;
 	}
 
-	public Registration(final Context context, final String name, final String className, final Servlet servlet) {
+	public MyrServletRegistration(final Context context, final String name, final String className, final Servlet servlet) {
 		this(context, name, className);
 		this.servlet = servlet;
 	}
 
-	public void init() throws ServletException, ClassNotFoundException {
-		if (inited)
+	public void service(final ServletRequest request, final ServletResponse response) throws IOException, ServletException {
+		init();
+		servlet.service(request, response);
+	}
+
+	public void init() throws ServletException {
+		if (inited.get())
 			return;
+		initLock.lock();
+		try {
+			if (inited.get())
+				return;
+			if (servlet == null) {
+				try {
+					@SuppressWarnings("unchecked")
+					final Class<? extends Servlet> clazz = (Class<? extends Servlet>) context.getClassLoader().loadClass(className);
+					servlet = context.createServlet(clazz);
+				} catch (final ClassNotFoundException ex) {
+					throw new ServletException(ex);
+				}
+			}
 
-		if (servlet == null) {
-			@SuppressWarnings("unchecked")
-			final Class<? extends Servlet> clazz = (Class<? extends Servlet>) context.getClassLoader().loadClass(className);
-			servlet = context.createServlet(clazz);
+			servlet.init(new MyrServletConfig(context, name, initParameters));
+
+			inited.set(true);
+		} finally {
+			initLock.unlock();
 		}
-
-		servlet.init(new Config(context, name, initParameters));
-		inited = true;
 	}
 
 	public void destroy() {
-		if (!inited)
+		if (!inited.get())
 			return;
-		inited = false;
-		servlet.destroy();
+		initLock.lock();
+		try {
+			if (!inited.get())
+				return;
+			inited.set(false);
+			servlet.destroy();
+		} finally {
+			initLock.unlock();
+		}
 	}
 
 	public Servlet getServlet() {

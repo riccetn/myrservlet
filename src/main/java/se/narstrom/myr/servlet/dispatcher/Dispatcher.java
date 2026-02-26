@@ -14,12 +14,13 @@ import jakarta.servlet.UnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import se.narstrom.myr.servlet.Mapping;
-import se.narstrom.myr.servlet.Registration;
 import se.narstrom.myr.servlet.async.AsyncHttpRequest;
 import se.narstrom.myr.servlet.async.AsyncRequest;
 import se.narstrom.myr.servlet.context.Context;
+import se.narstrom.myr.servlet.filter.ExecutableFilterChain;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
+import se.narstrom.myr.servlet.servlet.MyrServletRegistration;
 import se.narstrom.myr.uri.Query;
 
 public final class Dispatcher implements RequestDispatcher {
@@ -29,7 +30,7 @@ public final class Dispatcher implements RequestDispatcher {
 
 	private final Mapping mapping;
 
-	private final Registration registration;
+	private final ExecutableFilterChain filterChain;
 
 	private final Query query;
 
@@ -37,15 +38,15 @@ public final class Dispatcher implements RequestDispatcher {
 
 	private ServletResponse response = null;;
 
-	public Dispatcher(final Context context, final Mapping mapping, final Registration registration, final Query query) {
+	public Dispatcher(final Context context, final Mapping mapping, final ExecutableFilterChain filterChain, final Query query) {
 		this.context = context;
 		this.mapping = mapping;
-		this.registration = registration;
+		this.filterChain = filterChain;
 		this.query = query;
 	}
 
-	public Registration getRegistration() {
-		return registration;
+	public MyrServletRegistration getRegistration() {
+		return filterChain.getServletRegistration();
 	}
 
 	public Context getContext() {
@@ -70,22 +71,22 @@ public final class Dispatcher implements RequestDispatcher {
 
 	public Request getOriginalRequest() {
 		ServletRequest request = this.request;
-		while(request instanceof ServletRequestWrapper wrapper)
+		while (request instanceof ServletRequestWrapper wrapper)
 			request = wrapper.getRequest();
 		return (Request) request;
 	}
 
 	public void request(final Request request, final Response response) throws ServletException, IOException {
-		logger.log(Level.INFO, "DISPATCH for servlet ''{0}'', asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
+		logger.log(Level.INFO, "DISPATCH for servlet ''{0}'', asyncSupported: {1}", new Object[] { getRegistration().getName(), getRegistration().isAsyncSupported() });
 		request.setDispatcher(this);
 		response.setDispatcher(this);
 		dispatch(request, response);
 	}
 
 	public void async(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
-		logger.log(Level.INFO, "ASYNC for servlet ''{0}'', asyncSupported: {1}", new Object[] { registration.getName(), registration.isAsyncSupported() });
+		logger.log(Level.INFO, "ASYNC for servlet ''{0}'', asyncSupported: {1}", new Object[] { getRegistration().getName(), getRegistration().isAsyncSupported() });
 		final ServletRequest asyncRequest;
-		if(request instanceof HttpServletRequest httpRequest)
+		if (request instanceof HttpServletRequest httpRequest)
 			asyncRequest = new AsyncHttpRequest(httpRequest, this);
 		else
 			asyncRequest = new AsyncRequest(request, this);
@@ -94,14 +95,14 @@ public final class Dispatcher implements RequestDispatcher {
 
 	@Override
 	public void forward(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
-		logger.log(Level.INFO, "FORWARD to servlet ''{0}''", registration.getName());
+		logger.log(Level.INFO, "FORWARD to servlet ''{0}''", getRegistration().getName());
 		response.reset();
 		dispatch(new ForwardRequest((HttpServletRequest) request, this), (HttpServletResponse) response);
 	}
 
 	@Override
 	public void include(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
-		logger.log(Level.INFO, "INCLUDE to servlet ''{0}''", registration.getName());
+		logger.log(Level.INFO, "INCLUDE to servlet ''{0}''", getRegistration().getName());
 		dispatch(new IncludeRequest((HttpServletRequest) request), new IncludeResponse((HttpServletResponse) response));
 	}
 
@@ -129,28 +130,27 @@ public final class Dispatcher implements RequestDispatcher {
 		this.response = response;
 
 		try {
-			registration.init();
-			registration.getServlet().service(request, response);
+			filterChain.doFilter(request, response);
 		} catch (final UnavailableException ex) {
 			final LogRecord logRecord = new LogRecord(Level.WARNING, "Servlet ''{0}'' {1} unavailable");
-			logRecord.setParameters(new Object[] { registration.getName(), ex.isPermanent() ? "permanently" : "temporary" });
+			logRecord.setParameters(new Object[] { getRegistration().getName(), ex.isPermanent() ? "permanently" : "temporary" });
 			logRecord.setThrown(ex);
 			logger.log(logRecord);
 
 			if (ex.isPermanent()) {
-				registration.destroy();
+				getRegistration().destroy();
 			}
 
 			throw ex;
 		} catch (final ServletException | IOException ex) {
 			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception thrown when handeling request in servlet ''{0}''");
-			logRecord.setParameters(new Object[] { registration.getName() });
+			logRecord.setParameters(new Object[] { getRegistration().getName() });
 			logRecord.setThrown(ex);
 			logger.log(logRecord);
 			throw ex;
 		} catch (final Exception ex) {
 			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception thrown when handeling request in servlet ''{0}''");
-			logRecord.setParameters(new Object[] { registration.getName() });
+			logRecord.setParameters(new Object[] { getRegistration().getName() });
 			logRecord.setThrown(ex);
 			logger.log(logRecord);
 			throw new ServletException(ex);

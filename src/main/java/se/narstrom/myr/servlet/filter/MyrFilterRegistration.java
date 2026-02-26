@@ -1,18 +1,25 @@
-package se.narstrom.myr.servlet;
+package se.narstrom.myr.servlet.filter;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterRegistration;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import se.narstrom.myr.servlet.InitParameters;
 import se.narstrom.myr.servlet.context.Context;
 
 public final class MyrFilterRegistration implements FilterRegistration.Dynamic {
@@ -22,9 +29,13 @@ public final class MyrFilterRegistration implements FilterRegistration.Dynamic {
 
 	private final String className;
 
-	private final Map<String, String> initParameters = new HashMap<>();
+	private final InitParameters initParameters = new InitParameters();
 
 	private final List<String> servletNameMappings = new ArrayList<>();
+
+	private final AtomicBoolean inited = new AtomicBoolean(false);
+
+	private final Lock initLock = new ReentrantLock();
 
 	private Class<? extends Filter> filterClass;
 
@@ -54,9 +65,11 @@ public final class MyrFilterRegistration implements FilterRegistration.Dynamic {
 
 	@Override
 	public void addMappingForServletNames(final EnumSet<DispatcherType> dispatcherTypes, final boolean isMatchAfter, final String... servletNames) {
-		for (final String servletName : servletNames) {
-			context.addServletNameFilterMapping(servletName, isMatchAfter, filterName);
-			servletNameMappings.add(servletName);
+		for (final DispatcherType dispatcherType : dispatcherTypes) {
+			for (final String servletName : servletNames) {
+				context.addServletNameFilterMapping(dispatcherType, servletName, isMatchAfter, filterName);
+				servletNameMappings.add(servletName);
+			}
 		}
 	}
 
@@ -87,32 +100,22 @@ public final class MyrFilterRegistration implements FilterRegistration.Dynamic {
 
 	@Override
 	public boolean setInitParameter(final String name, final String value) {
-		if (initParameters.containsKey(name))
-			return false;
-		initParameters.put(name, value);
-		return true;
+		return initParameters.setInitParameter(name, value);
 	}
 
 	@Override
 	public String getInitParameter(final String name) {
-		return initParameters.get(name);
+		return initParameters.getInitParameter(name);
 	}
 
 	@Override
-	public Set<String> setInitParameters(final Map<String, String> initParameters) {
-		final Set<String> successful = new HashSet<>();
-		for (final Map.Entry<String, String> initParameter : initParameters.entrySet()) {
-			final String name = initParameter.getKey();
-			final String value = initParameter.getValue();
-			if (setInitParameter(name, value))
-				successful.add(name);
-		}
-		return successful;
+	public Set<String> setInitParameters(final Map<String, String> params) {
+		return initParameters.setInitParameters(params);
 	}
 
 	@Override
 	public Map<String, String> getInitParameters() {
-		return Collections.unmodifiableMap(initParameters);
+		return initParameters.getInitParameters();
 	}
 
 	@Override
@@ -120,4 +123,33 @@ public final class MyrFilterRegistration implements FilterRegistration.Dynamic {
 		throw new UnsupportedOperationException();
 	}
 
+	public void service(final ServletRequest trquest, final ServletResponse response, final FilterChain chain) throws IOException, ServletException {
+		init();
+		filter.doFilter(trquest, response, chain);
+	}
+
+	public void init() throws IOException, ServletException {
+		if (inited.get())
+			return;
+		initLock.lock();
+		try {
+			if (inited.get())
+				return;
+			if (filterClass == null) {
+				try {
+					@SuppressWarnings("unchecked")
+					final Class<? extends Filter> clazz = (Class<? extends Filter>) context.getClassLoader().loadClass(className);
+					filterClass = clazz;
+				} catch (ClassNotFoundException ex) {
+					throw new ServletException(ex);
+				}
+			}
+			if (filter == null)
+				filter = context.createFilter(filterClass);
+			filter.init(new MyrFilterConfig(context, filterName, initParameters));
+			inited.set(true);
+		} finally {
+			initLock.unlock();
+		}
+	}
 }

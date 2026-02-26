@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.HashMap;
@@ -24,6 +25,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterRegistration;
 import jakarta.servlet.Servlet;
@@ -44,11 +46,12 @@ import se.narstrom.myr.http.v1.RequestTarget;
 import se.narstrom.myr.servlet.CanonicalizedPath;
 import se.narstrom.myr.servlet.InitParameters;
 import se.narstrom.myr.servlet.Mapping;
-import se.narstrom.myr.servlet.MyrFilterRegistration;
-import se.narstrom.myr.servlet.Registration;
 import se.narstrom.myr.servlet.attributes.Attributes;
 import se.narstrom.myr.servlet.container.Container;
 import se.narstrom.myr.servlet.dispatcher.Dispatcher;
+import se.narstrom.myr.servlet.filter.ExecutableFilterChain;
+import se.narstrom.myr.servlet.filter.MyrFilterRegistration;
+import se.narstrom.myr.servlet.servlet.MyrServletRegistration;
 import se.narstrom.myr.servlet.session.Session;
 import se.narstrom.myr.servlet.session.SessionManager;
 import se.narstrom.myr.uri.Query;
@@ -83,7 +86,11 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	private final Map<String, String> mimeTypeMappings = new HashMap<>();
 
-	private final Map<String, List<String>> servletNameFilterMappings = new HashMap<>();
+	private final Map<DispatcherType, Map<String, List<String>>> servletNameFilterMappings = new EnumMap<>(DispatcherType.class);
+	{
+		for (final DispatcherType type : DispatcherType.values())
+			servletNameFilterMappings.put(type, new HashMap<>());
+	}
 
 	private boolean inited = false;
 
@@ -142,7 +149,7 @@ public final class Context implements AutoCloseable, ServletContext {
 	// 4.4.1. Programmatically Adding and Configuring Servlets
 	// ======================================================
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#programmatically-adding-and-configuring-servlets
-	private final Map<String, Registration> registrations = new HashMap<>();
+	private final Map<String, MyrServletRegistration> registrations = new HashMap<>();
 
 	@Override
 	public ServletRegistration.Dynamic addServlet(final String servletName, final String className) {
@@ -159,7 +166,7 @@ public final class Context implements AutoCloseable, ServletContext {
 	public ServletRegistration.Dynamic addServlet(final String servletName, final Servlet servlet) {
 		if (registrations.containsKey(servletName))
 			return null;
-		final Registration registration = new Registration(this, servletName, servlet.getClass().getName(), servlet);
+		final MyrServletRegistration registration = new MyrServletRegistration(this, servletName, servlet.getClass().getName(), servlet);
 		registrations.put(servletName, registration);
 		return registration;
 	}
@@ -481,7 +488,7 @@ public final class Context implements AutoCloseable, ServletContext {
 			return;
 		inited = false;
 		logger.info("Destroying servlet context");
-		for (final Registration registration : registrations.values()) {
+		for (final MyrServletRegistration registration : registrations.values()) {
 			registration.destroy();
 		}
 	}
@@ -504,7 +511,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public void close() {
-		for (final Registration registration : registrations.values()) {
+		for (final MyrServletRegistration registration : registrations.values()) {
 			registration.destroy();
 		}
 	}
@@ -531,8 +538,8 @@ public final class Context implements AutoCloseable, ServletContext {
 		mimeTypeMappings.put(extension, mediaType);
 	}
 
-	public void addServletNameFilterMapping(final String servletName, final boolean isMatchAfter, final String filterName) {
-		final List<String> mappings = servletNameFilterMappings.computeIfAbsent(servletName, _ -> new ArrayList<>());
+	public void addServletNameFilterMapping(final DispatcherType dispatcherType, final String servletName, final boolean isMatchAfter, final String filterName) {
+		final List<String> mappings = servletNameFilterMappings.get(dispatcherType).computeIfAbsent(servletName, _ -> new ArrayList<>());
 		if (isMatchAfter)
 			mappings.addLast(filterName);
 		else
@@ -655,16 +662,16 @@ public final class Context implements AutoCloseable, ServletContext {
 
 		logger.log(Level.INFO, "Creating Dispatcher for uri {0} to servlet {1}", new Object[] { uri, servletName });
 
-		return new Dispatcher(this, mapping, registrations.get(servletName), target.query());
+		return new Dispatcher(this, mapping, new ExecutableFilterChain(List.of(), registrations.get(servletName)), target.query());
 	}
 
 	@Override
 	public Dispatcher getNamedDispatcher(final String name) {
-		final Registration registration = registrations.get(name);
+		final MyrServletRegistration registration = registrations.get(name);
 		if (registration == null)
 			return null;
 		else
-			return new Dispatcher(this, null, registrations.get(name), new Query(""));
+			return new Dispatcher(this, null, new ExecutableFilterChain(List.of(), registrations.get(name)), new Query(""));
 	}
 
 	@Override
