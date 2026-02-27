@@ -1,5 +1,6 @@
 package se.narstrom.myr.servlet.context;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -23,6 +24,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import jakarta.servlet.DispatcherType;
@@ -37,7 +39,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.SessionTrackingMode;
+import jakarta.servlet.UnavailableException;
 import jakarta.servlet.descriptor.JspConfigDescriptor;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpSessionEvent;
 import jakarta.servlet.http.HttpSessionIdListener;
@@ -46,11 +50,14 @@ import se.narstrom.myr.http.v1.RequestTarget;
 import se.narstrom.myr.servlet.CanonicalizedPath;
 import se.narstrom.myr.servlet.InitParameters;
 import se.narstrom.myr.servlet.Mapping;
+import se.narstrom.myr.servlet.async.AsyncHandler;
 import se.narstrom.myr.servlet.attributes.Attributes;
 import se.narstrom.myr.servlet.container.Container;
 import se.narstrom.myr.servlet.dispatcher.Dispatcher;
 import se.narstrom.myr.servlet.filter.ExecutableFilterChain;
 import se.narstrom.myr.servlet.filter.MyrFilterRegistration;
+import se.narstrom.myr.servlet.request.Request;
+import se.narstrom.myr.servlet.response.Response;
 import se.narstrom.myr.servlet.servlet.MyrServletRegistration;
 import se.narstrom.myr.servlet.session.Session;
 import se.narstrom.myr.servlet.session.SessionManager;
@@ -116,6 +123,75 @@ public final class Context implements AutoCloseable, ServletContext {
 		this.logger = Logger.getLogger("ServletContext:" + contextPath);
 		this.classLoader = new ServletClassLoader(this, base, getClass().getClassLoader());
 		this.container = container;
+	}
+
+	public void service(final Request request, final Response response) throws IOException {
+		final String uri = request.getRequestURI();
+		assert uri.startsWith(contextPath);
+
+		final String path = uri.substring(contextPath.length());
+
+		final AsyncHandler async = new AsyncHandler(this, path, request, response);
+		try {
+			async.service();
+		} catch (final ServletException | IOException ex) {
+			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception from dispatch in context ''{0}''");
+			logRecord.setParameters(new Object[] { contextName });
+			logRecord.setThrown(ex);
+			logger.log(logRecord);
+
+			if (!response.isCommitted())
+				handleException(request, response, ex);
+		}
+	}
+
+	private void handleException(final Request request, final Response response, final Throwable ex) {
+		try {
+			final String path = getExceptionMapping(ex);
+
+			if (path != null) {
+				getRequestDispatcher(path).error(request, response, ex, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+				return;
+			}
+
+			if (ex instanceof ServletException sex) {
+				final Throwable cause = sex.getRootCause();
+				if (cause != null)
+					handleException(request, response, sex.getRootCause());
+			}
+
+			switch (ex) {
+				case UnavailableException uex when !uex.isPermanent() -> handleError(request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, ex);
+				case UnavailableException _ -> handleError(request, response, HttpServletResponse.SC_NOT_FOUND, ex);
+				case FileNotFoundException _ -> handleError(request, response, HttpServletResponse.SC_NOT_FOUND, ex);
+				default -> handleError(request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ex);
+			}
+		} catch (final ServletException | IOException ex2) {
+			logger.log(Level.SEVERE, "Error in error-page dispatch", ex2);
+		}
+	}
+
+	private void handleError(final Request request, final Response response, final int status, final Throwable ex) {
+		try {
+			final String path = getErrorMapping(status);
+
+			if (path == null) {
+				String message = ex.getMessage();
+				if (message == null)
+					message = "Unknown Error";
+				response.reset();
+				response.setStatus(status);
+				response.setContentType("text/plain");
+				response.setContentLength(message.length());
+				response.getWriter().write(message);
+				response.flushBuffer();
+				return;
+			}
+
+			getRequestDispatcher(path).error(request, response, ex, status);
+		} catch (final ServletException | IOException ex2) {
+			logger.log(Level.SEVERE, "Error in error-page dispatch", ex2);
+		}
 	}
 
 
