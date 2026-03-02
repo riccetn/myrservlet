@@ -20,10 +20,10 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.ServletSecurityElement;
 import se.narstrom.myr.servlet.InitParameters;
-import se.narstrom.myr.servlet.context.Context;
+import se.narstrom.myr.servlet.context.ServletRegistry;
 
 public final class MyrServletRegistration implements ServletRegistration.Dynamic {
-	private final Context context;
+	private final ServletRegistry registry;
 
 	private final String name;
 
@@ -33,6 +33,8 @@ public final class MyrServletRegistration implements ServletRegistration.Dynamic
 
 	private final List<String> mappings = new ArrayList<>();
 
+	private Class<? extends Servlet> servletClass;
+
 	private Servlet servlet;
 
 	private final AtomicBoolean inited = new AtomicBoolean(false);
@@ -41,14 +43,19 @@ public final class MyrServletRegistration implements ServletRegistration.Dynamic
 
 	private boolean asyncSupported = false;
 
-	public MyrServletRegistration(final Context context, final String name, final String className) {
-		this.context = context;
+	public MyrServletRegistration(final ServletRegistry registry, final String name, final String className) {
+		this.registry = registry;
 		this.name = name;
 		this.className = className;
 	}
 
-	public MyrServletRegistration(final Context context, final String name, final String className, final Servlet servlet) {
-		this(context, name, className);
+	public MyrServletRegistration(final ServletRegistry registry, final String name, final Class<? extends Servlet> servletClass) {
+		this(registry, name, servletClass.getName());
+		this.servletClass = servletClass;
+	}
+
+	public MyrServletRegistration(final ServletRegistry registry, final String name, final Servlet servlet) {
+		this(registry, name, servlet.getClass());
 		this.servlet = servlet;
 	}
 
@@ -64,17 +71,20 @@ public final class MyrServletRegistration implements ServletRegistration.Dynamic
 		try {
 			if (inited.get())
 				return;
-			if (servlet == null) {
+			if (servletClass == null) {
 				try {
 					@SuppressWarnings("unchecked")
-					final Class<? extends Servlet> clazz = (Class<? extends Servlet>) context.getClassLoader().loadClass(className);
-					servlet = context.createServlet(clazz);
+					final Class<? extends Servlet> clazz = (Class<? extends Servlet>) registry.getContext().getClassLoader().loadClass(className);
+					this.servletClass = clazz;
 				} catch (final ClassNotFoundException ex) {
 					throw new ServletException(ex);
 				}
 			}
+			if (servlet == null) {
+				servlet = registry.getContext().createServlet(servletClass);
+			}
 
-			servlet.init(new MyrServletConfig(context, name, initParameters));
+			servlet.init(new MyrServletConfig(registry.getContext(), name, initParameters));
 
 			inited.set(true);
 		} finally {
@@ -108,7 +118,7 @@ public final class MyrServletRegistration implements ServletRegistration.Dynamic
 	public Set<String> addMapping(final String... urlPatterns) {
 		final HashSet<String> ret = new HashSet<>();
 		for (final String pattern : urlPatterns) {
-			if (!context.addMapping(pattern, name))
+			if (!registry.addMapping(pattern, name))
 				ret.add(pattern);
 			else
 				mappings.add(pattern);
@@ -133,7 +143,7 @@ public final class MyrServletRegistration implements ServletRegistration.Dynamic
 
 	@Override
 	public String getClassName() {
-		return servlet.getClass().getName();
+		return className;
 	}
 
 	@Override

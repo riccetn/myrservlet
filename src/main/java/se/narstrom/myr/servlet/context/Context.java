@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -45,7 +46,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpSessionEvent;
 import jakarta.servlet.http.HttpSessionIdListener;
-import jakarta.servlet.http.MappingMatch;
 import se.narstrom.myr.http.v1.RequestTarget;
 import se.narstrom.myr.servlet.CanonicalizedPath;
 import se.narstrom.myr.servlet.InitParameters;
@@ -77,21 +77,13 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	private final SessionManager sessionManager;
 
-	private String defaultServlet = null;
-
-	private final Map<String, String> extentionMappings = new HashMap<>();
-
-	private final Map<String, String> pathMappings = new HashMap<>();
-
-	private final Map<String, String> exactMappings = new HashMap<>();
-
-	private final Map<String, String> exceptionMappings = new HashMap<>();
-
 	private final Map<Integer, String> errorMappings = new HashMap<>();
 
 	private final Map<Locale, Charset> localeEncodingMappings = new HashMap<>();
 
 	private final Map<String, String> mimeTypeMappings = new HashMap<>();
+
+	private final Map<String, String> exceptionMappings = new ConcurrentHashMap<>();
 
 	private final Map<DispatcherType, Map<String, List<String>>> servletNameFilterMappings = new EnumMap<>(DispatcherType.class);
 	{
@@ -225,35 +217,21 @@ public final class Context implements AutoCloseable, ServletContext {
 	// 4.4.1. Programmatically Adding and Configuring Servlets
 	// ======================================================
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#programmatically-adding-and-configuring-servlets
-	private final Map<String, MyrServletRegistration> registrations = new HashMap<>();
+	private final ServletRegistry registry = new ServletRegistry(this);
 
 	@Override
 	public ServletRegistration.Dynamic addServlet(final String servletName, final String className) {
-		try {
-			@SuppressWarnings("unchecked")
-			final Class<? extends Servlet> clazz = (Class<? extends Servlet>) classLoader.loadClass(className);
-			return addServlet(servletName, clazz);
-		} catch (final ClassNotFoundException ex) {
-			throw new RuntimeException(ex);
-		}
+		return registry.addServlet(servletName, className);
 	}
 
 	@Override
 	public ServletRegistration.Dynamic addServlet(final String servletName, final Servlet servlet) {
-		if (registrations.containsKey(servletName))
-			return null;
-		final MyrServletRegistration registration = new MyrServletRegistration(this, servletName, servlet.getClass().getName(), servlet);
-		registrations.put(servletName, registration);
-		return registration;
+		return registry.addServlet(servletName, servlet);
 	}
 
 	@Override
 	public ServletRegistration.Dynamic addServlet(final String servletName, final Class<? extends Servlet> servletClass) {
-		try {
-			return addServlet(servletName, createServlet(servletClass));
-		} catch (ServletException ex) {
-			throw new RuntimeException(ex);
-		}
+		return registry.addServlet(servletName, servletClass);
 	}
 
 	@Override
@@ -272,46 +250,12 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public ServletRegistration getServletRegistration(final String servletName) {
-		return registrations.get(servletName);
+		return registry.getServletRegistration(servletName);
 	}
 
 	@Override
 	public Map<String, ? extends ServletRegistration> getServletRegistrations() {
-		return Collections.unmodifiableMap(registrations);
-	}
-
-	public boolean addMapping(final String pattern, final String name) {
-		if (pattern.startsWith("/") && pattern.endsWith("/*")) {
-			final String path = pattern.substring(0, pattern.length() - 2);
-			if (pathMappings.containsKey(path))
-				return false;
-			pathMappings.put(path, name);
-			return true;
-		}
-
-		if (pattern.startsWith("*.")) {
-			final String extention = pattern.substring(2);
-			if (extentionMappings.containsKey(extention))
-				return false;
-			extentionMappings.put(extention, name);
-			return true;
-		}
-
-		if (pattern.equals("")) {
-			throw new UnsupportedOperationException("context-root mapping not implemented");
-		}
-
-		if (pattern.equals("/")) {
-			if (defaultServlet != null)
-				return false;
-			defaultServlet = name;
-			return true;
-		}
-
-		if (exactMappings.containsKey(pattern))
-			return false;
-		exactMappings.put(pattern, name);
-		return true;
+		return registry.getServletRegistrations();
 	}
 
 
@@ -564,7 +508,7 @@ public final class Context implements AutoCloseable, ServletContext {
 			return;
 		inited = false;
 		logger.info("Destroying servlet context");
-		for (final MyrServletRegistration registration : registrations.values()) {
+		for (final MyrServletRegistration registration : registry.getServletRegistrations().values()) {
 			registration.destroy();
 		}
 	}
@@ -587,7 +531,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public void close() {
-		for (final MyrServletRegistration registration : registrations.values()) {
+		for (final MyrServletRegistration registration : registry.getServletRegistrations().values()) {
 			registration.destroy();
 		}
 	}
@@ -674,80 +618,20 @@ public final class Context implements AutoCloseable, ServletContext {
 	public Dispatcher getRequestDispatcher(String uri) {
 		final RequestTarget target = RequestTarget.parse(uri);
 		final CanonicalizedPath canonicalizedPath = CanonicalizedPath.canonicalize(target.absolutePath());
-		uri = canonicalizedPath.toString();
+		final Mapping mapping = registry.findServletRegistrationFromUri(canonicalizedPath);
 
-		String servletName = null;
-		Mapping mapping = null;
+		logger.log(Level.INFO, "Creating Dispatcher for uri {0} to servlet {1}", new Object[] { uri, mapping.getServletName() });
 
-		servletName = exactMappings.get(uri);
-		if (servletName != null)
-			mapping = new Mapping(MappingMatch.EXACT, uri, uri.substring(1), canonicalizedPath, uri, "", servletName);
-
-		if (servletName == null) {
-			assert uri.charAt(0) == '/';
-
-			String path = uri;
-			if (path.charAt(path.length() - 1) == '/')
-				path = path.substring(0, path.length() - 1);
-
-			while (!path.isEmpty()) {
-				servletName = pathMappings.get(path);
-				if (servletName != null) {
-					final String matchValue;
-					if (path.length() == uri.length())
-						matchValue = "";
-					else
-						matchValue = uri.substring(path.length() + 1);
-
-					mapping = new Mapping(MappingMatch.PATH, path + "/*", matchValue, canonicalizedPath, path, uri.substring(path.length()), servletName);
-					break;
-				}
-				final int slash = path.lastIndexOf('/');
-				path = path.substring(0, slash);
-			}
-
-			if (servletName == null) {
-				servletName = pathMappings.get("");
-				if (servletName != null) {
-					mapping = new Mapping(MappingMatch.PATH, "/*", uri.substring(1), canonicalizedPath, "", uri, servletName);
-				}
-			}
-		}
-
-		if (servletName == null) {
-			final int slash = uri.lastIndexOf('/');
-			final int dot = uri.lastIndexOf('.');
-			if (slash < dot) {
-				final String extension = uri.substring(dot + 1);
-				servletName = extentionMappings.get(extension);
-				if (servletName != null) {
-					mapping = new Mapping(MappingMatch.EXTENSION, "*." + extension, uri.substring(1, dot), canonicalizedPath, uri.substring(0, slash), uri.substring(slash), servletName);
-				}
-			}
-		}
-
-		if (servletName == null) {
-			servletName = defaultServlet;
-			mapping = new Mapping(MappingMatch.DEFAULT, "/", "", canonicalizedPath, uri, uri, servletName);
-		}
-
-		if (servletName == null) {
-			logger.log(Level.WARNING, "No servlet found for {0}", uri);
-			throw new RuntimeException("No Servlet");
-		}
-
-		logger.log(Level.INFO, "Creating Dispatcher for uri {0} to servlet {1}", new Object[] { uri, servletName });
-
-		return new Dispatcher(this, mapping, new ExecutableFilterChain(List.of(), registrations.get(servletName)), target.query());
+		return new Dispatcher(this, mapping, new ExecutableFilterChain(List.of(), registry.getServletRegistration(mapping.getServletName())), target.query());
 	}
 
 	@Override
 	public Dispatcher getNamedDispatcher(final String name) {
-		final MyrServletRegistration registration = registrations.get(name);
+		final MyrServletRegistration registration = registry.getServletRegistration(name);
 		if (registration == null)
 			return null;
 		else
-			return new Dispatcher(this, null, new ExecutableFilterChain(List.of(), registrations.get(name)), new Query(""));
+			return new Dispatcher(this, null, new ExecutableFilterChain(List.of(), registration), new Query(""));
 	}
 
 	@Override
