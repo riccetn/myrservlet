@@ -20,10 +20,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import se.narstrom.myr.servlet.InitParameters;
-import se.narstrom.myr.servlet.context.Context;
+import se.narstrom.myr.servlet.context.ServletRegistry;
 
 public final class MyrFilterRegistration implements FilterRegistration.Dynamic {
-	private final Context context;
+	private final ServletRegistry registry;
 
 	private final String filterName;
 
@@ -41,21 +41,21 @@ public final class MyrFilterRegistration implements FilterRegistration.Dynamic {
 
 	private Filter filter;
 
-	public MyrFilterRegistration(final Context context, final String name, final String className) {
-		this.context = context;
+	public MyrFilterRegistration(final ServletRegistry registry, final String name, final String className) {
+		this.registry = registry;
 		this.filterName = name;
 		this.className = className;
 	}
 
-	public MyrFilterRegistration(final Context context, final String name, final Class<? extends Filter> clazz) {
-		this.context = context;
+	public MyrFilterRegistration(final ServletRegistry registry, final String name, final Class<? extends Filter> clazz) {
+		this.registry = registry;
 		this.filterName = name;
 		this.className = clazz.getName();
 		this.filterClass = clazz;
 	}
 
-	public MyrFilterRegistration(final Context context, final String name, final Filter filter) {
-		this.context = context;
+	public MyrFilterRegistration(final ServletRegistry registry, final String name, final Filter filter) {
+		this.registry = registry;
 		this.filterName = name;
 		final Class<? extends Filter> clazz = filter.getClass();
 		this.className = clazz.getName();
@@ -67,7 +67,7 @@ public final class MyrFilterRegistration implements FilterRegistration.Dynamic {
 	public void addMappingForServletNames(final EnumSet<DispatcherType> dispatcherTypes, final boolean isMatchAfter, final String... servletNames) {
 		for (final DispatcherType dispatcherType : dispatcherTypes) {
 			for (final String servletName : servletNames) {
-				context.addServletNameFilterMapping(dispatcherType, servletName, isMatchAfter, filterName);
+				registry.addFilterMappingForServletName(dispatcherType, servletName, isMatchAfter, filterName);
 				servletNameMappings.add(servletName);
 			}
 		}
@@ -138,15 +138,15 @@ public final class MyrFilterRegistration implements FilterRegistration.Dynamic {
 			if (filterClass == null) {
 				try {
 					@SuppressWarnings("unchecked")
-					final Class<? extends Filter> clazz = (Class<? extends Filter>) context.getClassLoader().loadClass(className);
+					final Class<? extends Filter> clazz = (Class<? extends Filter>) registry.getContext().getClassLoader().loadClass(className);
 					filterClass = clazz;
 				} catch (ClassNotFoundException ex) {
 					throw new ServletException(ex);
 				}
 			}
 			if (filter == null)
-				filter = context.createFilter(filterClass);
-			filter.init(new MyrFilterConfig(context, filterName, initParameters));
+				filter = registry.getContext().createFilter(filterClass);
+			filter.init(new MyrFilterConfig(registry.getContext(), filterName, initParameters));
 			inited.set(true);
 		} finally {
 			initLock.unlock();

@@ -118,7 +118,7 @@ public final class MyrServletRegistration implements ServletRegistration.Dynamic
 	public Set<String> addMapping(final String... urlPatterns) {
 		final HashSet<String> ret = new HashSet<>();
 		for (final String pattern : urlPatterns) {
-			if (!registry.addMapping(pattern, name))
+			if (!registry.addServletMapping(pattern, name))
 				ret.add(pattern);
 			else
 				mappings.add(pattern);

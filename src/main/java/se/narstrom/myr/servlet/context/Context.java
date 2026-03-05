@@ -11,7 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Enumeration;
 import java.util.EventListener;
@@ -55,7 +54,6 @@ import se.narstrom.myr.servlet.attributes.Attributes;
 import se.narstrom.myr.servlet.container.Container;
 import se.narstrom.myr.servlet.dispatcher.Dispatcher;
 import se.narstrom.myr.servlet.filter.ExecutableFilterChain;
-import se.narstrom.myr.servlet.filter.MyrFilterRegistration;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
 import se.narstrom.myr.servlet.servlet.MyrServletRegistration;
@@ -262,33 +260,20 @@ public final class Context implements AutoCloseable, ServletContext {
 	// 4.4.2. Programmatically Adding and Configuring Filters
 	// =====================================================
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#programmatically-adding-and-configuring-filters
-	private final Map<String, MyrFilterRegistration> filterRegistrations = new HashMap<>();
 
 	@Override
 	public FilterRegistration.Dynamic addFilter(final String filterName, final String className) {
-		if (filterRegistrations.containsKey(filterName))
-			return null;
-		final MyrFilterRegistration registration = new MyrFilterRegistration(this, filterName, className);
-		filterRegistrations.put(filterName, registration);
-		return registration;
+		return registry.addFilter(filterName, className);
 	}
 
 	@Override
 	public FilterRegistration.Dynamic addFilter(final String filterName, final Filter filter) {
-		if (filterRegistrations.containsKey(filterName))
-			return null;
-		final MyrFilterRegistration registration = new MyrFilterRegistration(this, filterName, filter);
-		filterRegistrations.put(filterName, registration);
-		return registration;
+		return registry.addFilter(filterName, filter);
 	}
 
 	@Override
 	public FilterRegistration.Dynamic addFilter(final String filterName, final Class<? extends Filter> filterClass) {
-		if (filterRegistrations.containsKey(filterName))
-			return null;
-		final MyrFilterRegistration registration = new MyrFilterRegistration(this, filterName, filterClass);
-		filterRegistrations.put(filterName, registration);
-		return registration;
+		return registry.addFilter(filterName, filterClass);
 	}
 
 	@Override
@@ -302,12 +287,12 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public FilterRegistration getFilterRegistration(final String filterName) {
-		return filterRegistrations.get(filterName);
+		return registry.getFilterRegistration(filterName);
 	}
 
 	@Override
 	public Map<String, ? extends FilterRegistration> getFilterRegistrations() {
-		return Collections.unmodifiableMap(filterRegistrations);
+		return registry.getFilterRegistrations();
 	}
 
 

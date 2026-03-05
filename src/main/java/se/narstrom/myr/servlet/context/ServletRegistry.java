@@ -1,27 +1,36 @@
 package se.narstrom.myr.servlet.context;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.http.MappingMatch;
 import se.narstrom.myr.servlet.CanonicalizedPath;
 import se.narstrom.myr.servlet.Mapping;
+import se.narstrom.myr.servlet.filter.MyrFilterRegistration;
 import se.narstrom.myr.servlet.servlet.MyrServletRegistration;
 
 public final class ServletRegistry {
 	private static final Logger logger = Logger.getLogger("SerletRegistry");
 
 	private final Context context;
-	private final Map<String, MyrServletRegistration> registrations = new ConcurrentHashMap<>();
+
+	private final Map<String, MyrServletRegistration> servletRegistrations = new ConcurrentHashMap<>();
 	private final AtomicReference<String> defaultMapping = new AtomicReference<>();
 	private final Map<String, String> exactMappings = new ConcurrentHashMap<>();
 	private final Map<String, String> pathMappings = new ConcurrentHashMap<>();
 	private final Map<String, String> extentionMappings = new ConcurrentHashMap<>();
+
+	private final Map<String, MyrFilterRegistration> filterRegistrations = new ConcurrentHashMap<>();
+	private final Map<FilterServletNameMappingKey, List<String>> servletNameFilterMappings = new ConcurrentHashMap<>();
 
 	public ServletRegistry(final Context context) {
 		this.context = context;
@@ -29,26 +38,26 @@ public final class ServletRegistry {
 
 	public MyrServletRegistration addServlet(final String servletName, final String className) {
 		final MyrServletRegistration registration = new MyrServletRegistration(this, servletName, className);
-		if (registrations.putIfAbsent(servletName, registration) != null)
+		if (servletRegistrations.putIfAbsent(servletName, registration) != null)
 			return null;
 		return registration;
 	}
 
 	public MyrServletRegistration addServlet(final String servletName, final Class<? extends Servlet> servletClass) {
 		final MyrServletRegistration registration = new MyrServletRegistration(this, servletName, servletClass);
-		if (registrations.putIfAbsent(servletName, registration) != null)
+		if (servletRegistrations.putIfAbsent(servletName, registration) != null)
 			return null;
 		return registration;
 	}
 
 	public ServletRegistration.Dynamic addServlet(final String servletName, final Servlet servlet) {
 		final MyrServletRegistration registration = new MyrServletRegistration(this, servletName, servlet);
-		if (registrations.putIfAbsent(servletName, registration) != null)
+		if (servletRegistrations.putIfAbsent(servletName, registration) != null)
 			return null;
 		return registration;
 	}
 
-	public boolean addMapping(final String pattern, final String name) {
+	public boolean addServletMapping(final String pattern, final String name) {
 		if (pattern.startsWith("/") && pattern.endsWith("/*")) {
 			final String path = pattern.substring(0, pattern.length() - 2);
 			return pathMappings.putIfAbsent(path, name) == null;
@@ -64,6 +73,55 @@ public final class ServletRegistry {
 		}
 
 		return exactMappings.putIfAbsent(pattern, name) == null;
+	}
+
+	public MyrServletRegistration getServletRegistration(final String name) {
+		return servletRegistrations.get(name);
+	}
+
+	public Map<String, MyrServletRegistration> getServletRegistrations() {
+		return Map.copyOf(servletRegistrations);
+	}
+
+	public MyrFilterRegistration addFilter(final String filterName, final String className) {
+		final MyrFilterRegistration registration = new MyrFilterRegistration(this, filterName, className);
+		if (filterRegistrations.putIfAbsent(filterName, registration) != null)
+			return null;
+		return registration;
+	}
+
+	public MyrFilterRegistration addFilter(final String filterName, final Filter filter) {
+		final MyrFilterRegistration registration = new MyrFilterRegistration(this, filterName, filter);
+		if (filterRegistrations.putIfAbsent(filterName, registration) != null)
+			return null;
+		return registration;
+	}
+
+	public MyrFilterRegistration addFilter(final String filterName, final Class<? extends Filter> filterClass) {
+		final MyrFilterRegistration registration = new MyrFilterRegistration(this, filterName, filterClass);
+		if (filterRegistrations.putIfAbsent(filterName, registration) != null)
+			return null;
+		return registration;
+	}
+
+	public void addFilterMappingForServletName(final DispatcherType dispatcherType, final String servletName, final boolean isMatchAfter, final String filterName) {
+		final List<String> filterNames = servletNameFilterMappings.computeIfAbsent(new FilterServletNameMappingKey(servletName, dispatcherType), _ -> new CopyOnWriteArrayList<>());
+		if (isMatchAfter)
+			filterNames.addLast(filterName);
+		else
+			filterNames.addFirst(filterName);
+	}
+
+	public MyrFilterRegistration getFilterRegistration(final String filterName) {
+		return filterRegistrations.get(filterName);
+	}
+
+	public Map<String, MyrFilterRegistration> getFilterRegistrations() {
+		return Map.copyOf(filterRegistrations);
+	}
+
+	public Context getContext() {
+		return this.context;
 	}
 
 	public Mapping findServletRegistrationFromUri(final CanonicalizedPath canonicalizedPath) {
@@ -132,15 +190,6 @@ public final class ServletRegistry {
 		return mapping;
 	}
 
-	public MyrServletRegistration getServletRegistration(final String name) {
-		return registrations.get(name);
-	}
-
-	public Map<String, MyrServletRegistration> getServletRegistrations() {
-		return Map.copyOf(registrations);
-	}
-
-	public Context getContext() {
-		return this.context;
+	private record FilterServletNameMappingKey(String servletName, DispatcherType dispatcherType) {
 	}
 }
