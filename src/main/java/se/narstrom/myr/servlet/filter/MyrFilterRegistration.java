@@ -79,8 +79,12 @@ public final class MyrFilterRegistration implements FilterRegistration.Dynamic {
 	}
 
 	@Override
-	public void addMappingForUrlPatterns(EnumSet<DispatcherType> dispatcherTypes, boolean isMatchAfter, String... urlPatterns) {
-		throw new UnsupportedOperationException();
+	public void addMappingForUrlPatterns(final EnumSet<DispatcherType> dispatcherTypes, final boolean isMatchAfter, final String... urlPatterns) {
+		for (final DispatcherType dispatcherType : dispatcherTypes) {
+			for (final String urlPattern : urlPatterns) {
+				registry.addFilterMappingForUrlPattern(dispatcherType, urlPattern, isMatchAfter, filterName);
+			}
+		}
 	}
 
 	@Override

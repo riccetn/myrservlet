@@ -1,5 +1,6 @@
 package se.narstrom.myr.servlet.context;
 
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,8 +30,20 @@ public final class ServletRegistry {
 	private final Map<String, String> pathMappings = new ConcurrentHashMap<>();
 	private final Map<String, String> extentionMappings = new ConcurrentHashMap<>();
 
+	private record ServletNameFilterMappingKey(String servletName, DispatcherType dispatcherType) {
+	}
+
+	private record UrlPatternFilterMapping(UrlPattern uriPattern, String filterName) {
+	}
+
 	private final Map<String, MyrFilterRegistration> filterRegistrations = new ConcurrentHashMap<>();
-	private final Map<FilterServletNameMappingKey, List<String>> servletNameFilterMappings = new ConcurrentHashMap<>();
+	private final Map<ServletNameFilterMappingKey, List<String>> servletNameFilterMappings = new ConcurrentHashMap<>();
+	private final Map<DispatcherType, List<UrlPatternFilterMapping>> urlPatternFilterMappings = new EnumMap<>(DispatcherType.class);
+	{
+		for (final DispatcherType type : DispatcherType.values()) {
+			urlPatternFilterMappings.put(type, new CopyOnWriteArrayList<>());
+		}
+	}
 
 	public ServletRegistry(final Context context) {
 		this.context = context;
@@ -58,21 +71,14 @@ public final class ServletRegistry {
 	}
 
 	public boolean addServletMapping(final String pattern, final String name) {
-		if (pattern.startsWith("/") && pattern.endsWith("/*")) {
-			final String path = pattern.substring(0, pattern.length() - 2);
-			return pathMappings.putIfAbsent(path, name) == null;
-		}
-
-		if (pattern.startsWith("*.")) {
-			final String extention = pattern.substring(2);
-			return extentionMappings.putIfAbsent(extention, name) == null;
-		}
-
-		if (pattern.equals("/")) {
-			return defaultMapping.compareAndSet(null, name);
-		}
-
-		return exactMappings.putIfAbsent(pattern, name) == null;
+		final UrlPattern urlPattern = UrlPattern.parse(pattern);
+		return switch (urlPattern) {
+			case UrlPattern.ContextRoot _ -> exactMappings.putIfAbsent("", name) == null;
+			case UrlPattern.Default _ -> defaultMapping.compareAndSet(null, name);
+			case UrlPattern.Exact exact -> exactMappings.putIfAbsent(exact.uri(), name) == null;
+			case UrlPattern.Extension extension -> extentionMappings.putIfAbsent(extension.extension(), name) == null;
+			case UrlPattern.Path path -> pathMappings.putIfAbsent(path.path(), name) == null;
+		};
 	}
 
 	public MyrServletRegistration getServletRegistration(final String name) {
@@ -105,11 +111,20 @@ public final class ServletRegistry {
 	}
 
 	public void addFilterMappingForServletName(final DispatcherType dispatcherType, final String servletName, final boolean isMatchAfter, final String filterName) {
-		final List<String> filterNames = servletNameFilterMappings.computeIfAbsent(new FilterServletNameMappingKey(servletName, dispatcherType), _ -> new CopyOnWriteArrayList<>());
+		final List<String> filterNames = servletNameFilterMappings.computeIfAbsent(new ServletNameFilterMappingKey(servletName, dispatcherType), _ -> new CopyOnWriteArrayList<>());
 		if (isMatchAfter)
 			filterNames.addLast(filterName);
 		else
 			filterNames.addFirst(filterName);
+	}
+
+	public void addFilterMappingForUrlPattern(final DispatcherType dispatcherType, final String urlPattern, final boolean isMatchAfter, final String filterName) {
+		final List<UrlPatternFilterMapping> mappings = urlPatternFilterMappings.get(dispatcherType);
+		final UrlPatternFilterMapping mapping = new UrlPatternFilterMapping(UrlPattern.parse(urlPattern), filterName);
+		if (isMatchAfter)
+			mappings.addLast(mapping);
+		else
+			mappings.addFirst(mapping);
 	}
 
 	public MyrFilterRegistration getFilterRegistration(final String filterName) {
@@ -188,8 +203,5 @@ public final class ServletRegistry {
 		}
 
 		return mapping;
-	}
-
-	private record FilterServletNameMappingKey(String servletName, DispatcherType dispatcherType) {
 	}
 }
