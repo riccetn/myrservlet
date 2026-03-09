@@ -127,12 +127,13 @@
 						<include>se/narstrom/myr/servlet/**/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/asynccontext/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/asyncevent/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/dispatchertype/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/dispatchertest/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/dofilter/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/filter/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/filterchain/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/filterconfig/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/genericfilter/*Tests.java</include>
-						<include>servlet/tck/api/jakarta_servlet/dispatchertype/*Tests.java</include>
-						<include>servlet/tck/api/jakarta_servlet/dispatchtest/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/genericservlet/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/registration/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/requestdispatcher/*Tests.java</include>
@@ -145,12 +146,20 @@
 						<include>servlet/tck/api/jakarta_servlet/servlet/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletconfig/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletcontext/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/servletexception/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletinputstream/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletoutputstream/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletrequest/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletrequest1/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletrequest30/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/servletrequestwrapper/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/servletrequestwrapper30x/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletresponse/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/servletresponsewrapper/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/servletresponsewrapper30/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/srattributelistener40/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/srevent/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/srlistener40/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet_http/asynccontext/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet_http/cookie/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet_http/httpfilter/*Tests.java</include>
@@ -161,6 +170,20 @@
 						<include>servlet/tck/api/jakarta_servlet_http/httpservletrequest31/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet_http/httpservletrequest40/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet_http/httpservletrequestwrapper/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet_http/httpsessionactivationlistener40/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet_http/httpsessionattributelistener40/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet_http/httpsessionbindinglistener40/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet_http/httpsessionidlistener/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet_http/httpsessionlistener40/*Tests.java</include>
+						<include>servlet/tck/spec/defaultcontextpath/*Tests.java</include>
+						<include>servlet/tck/spec/defaultmapping/*Tests.java</include>
+						<include>servlet/tck/spec/dir_struct/*Tests.java</include>
+						<include>servlet/tck/spec/protocols/http/*Tests.java</include>
+						<include>servlet/tck/spec/rdspecialchar/*Tests.java</include>
+						<include>servlet/tck/spec/requestmap/*Tests.java</include>
+						<include>servlet/tck/spec/servletmapping/*Tests.java</include>
+						<include>servlet/tck/spec/servletresponse/*Tests.java</include>
+						<include>servlet/tck/spec/webapps/accesswebinf/*Tests.java</include>
 					</includes>
 				</configuration>
 			</plugin>
