@@ -53,7 +53,6 @@ import se.narstrom.myr.servlet.async.AsyncHandler;
 import se.narstrom.myr.servlet.attributes.Attributes;
 import se.narstrom.myr.servlet.container.Container;
 import se.narstrom.myr.servlet.dispatcher.Dispatcher;
-import se.narstrom.myr.servlet.filter.ExecutableFilterChain;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
 import se.narstrom.myr.servlet.servlet.MyrServletRegistration;
@@ -607,16 +606,14 @@ public final class Context implements AutoCloseable, ServletContext {
 
 		logger.log(Level.INFO, "Creating Dispatcher for uri {0} to servlet {1}", new Object[] { uri, mapping.getServletName() });
 
-		return new Dispatcher(this, mapping, new ExecutableFilterChain(List.of(), registry.getServletRegistration(mapping.getServletName())), target.query());
+		return new Dispatcher(this, mapping, registry, target.query());
 	}
 
 	@Override
 	public Dispatcher getNamedDispatcher(final String name) {
-		final MyrServletRegistration registration = registry.getServletRegistration(name);
-		if (registration == null)
+		if (registry.getServletRegistration(name) == null)
 			return null;
-		else
-			return new Dispatcher(this, null, new ExecutableFilterChain(List.of(), registration), new Query(""));
+		return new Dispatcher(this, name, registry);
 	}
 
 	@Override

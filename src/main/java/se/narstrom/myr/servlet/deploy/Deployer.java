@@ -8,21 +8,27 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.EnumSet;
 import java.util.EventListener;
 import java.util.List;
 import java.util.Locale;
 
 import ee.jakarta.xml.ns.jakartaee.ErrorPageType;
+import ee.jakarta.xml.ns.jakartaee.FilterMappingType;
+import ee.jakarta.xml.ns.jakartaee.FilterType;
 import ee.jakarta.xml.ns.jakartaee.ListenerType;
 import ee.jakarta.xml.ns.jakartaee.LocaleEncodingMappingListType;
 import ee.jakarta.xml.ns.jakartaee.LocaleEncodingMappingType;
 import ee.jakarta.xml.ns.jakartaee.MimeMappingType;
 import ee.jakarta.xml.ns.jakartaee.ParamValueType;
 import ee.jakarta.xml.ns.jakartaee.ServletMappingType;
+import ee.jakarta.xml.ns.jakartaee.ServletNameType;
 import ee.jakarta.xml.ns.jakartaee.ServletType;
 import ee.jakarta.xml.ns.jakartaee.TrueFalseType;
 import ee.jakarta.xml.ns.jakartaee.UrlPatternType;
 import ee.jakarta.xml.ns.jakartaee.WebAppType;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.FilterRegistration;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.annotation.WebInitParam;
@@ -68,11 +74,48 @@ public final class Deployer {
 				registration.setAsyncSupported(asyncSupported.isValue());
 		}
 
+		for (final FilterType filter : webApp.getFilter()) {
+			final String className = filter.getFilterClass().getValue();
+			final String filterName = filter.getFilterName().getValue();
+
+			final FilterRegistration.Dynamic registration = context.addFilter(filterName, className);
+
+			for (final ParamValueType param : filter.getInitParam()) {
+				registration.setInitParameter(param.getParamName().getValue(), param.getParamValue().getValue());
+			}
+
+			final TrueFalseType asyncSupported = filter.getAsyncSupported();
+			if (asyncSupported != null)
+				registration.setAsyncSupported(asyncSupported.isValue());
+		}
+
 		for (final ServletMappingType mapping : webApp.getServletMapping()) {
 			final String servletName = mapping.getServletName().getValue();
 			final ServletRegistration registration = context.getServletRegistration(servletName);
 			for (final UrlPatternType pattern : mapping.getUrlPattern()) {
 				registration.addMapping(pattern.getValue());
+			}
+		}
+
+		for (final FilterMappingType mapping : webApp.getFilterMapping()) {
+			final String filterName = mapping.getFilterName().getValue();
+			final FilterRegistration registration = context.getFilterRegistration(filterName);
+
+			final EnumSet<DispatcherType> dispatcherTypes = EnumSet.noneOf(DispatcherType.class);
+			for (final ee.jakarta.xml.ns.jakartaee.DispatcherType type : mapping.getDispatcher()) {
+				dispatcherTypes.add(DispatcherType.valueOf(type.getValue()));
+			}
+
+			if (dispatcherTypes.isEmpty()) {
+				dispatcherTypes.add(DispatcherType.REQUEST);
+			}
+
+			for (final UrlPatternType pattern : mapping.getUrlPattern()) {
+				registration.addMappingForUrlPatterns(dispatcherTypes, true, pattern.getValue());
+			}
+
+			for (final ServletNameType servletName : mapping.getServletName()) {
+				registration.addMappingForServletNames(dispatcherTypes, true, servletName.getValue());
 			}
 		}
 

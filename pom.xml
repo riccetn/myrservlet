@@ -127,6 +127,10 @@
 						<include>se/narstrom/myr/servlet/**/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/asynccontext/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/asyncevent/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/dofilter/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/filter/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/filterchain/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/genericfilter/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/dispatchertype/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/dispatchtest/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/genericservlet/*Tests.java</include>
@@ -149,6 +153,7 @@
 						<include>servlet/tck/api/jakarta_servlet/servletresponse/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet_http/asynccontext/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet_http/cookie/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet_http/httpfilter/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet_http/httpservlet/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet_http/httpservletrequest/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet_http/httpservletrequest1/*Tests.java</include>

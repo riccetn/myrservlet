@@ -1,5 +1,6 @@
 package se.narstrom.myr.servlet.context;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +17,7 @@ import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.http.MappingMatch;
 import se.narstrom.myr.servlet.CanonicalizedPath;
 import se.narstrom.myr.servlet.Mapping;
+import se.narstrom.myr.servlet.filter.ExecutableFilterChain;
 import se.narstrom.myr.servlet.filter.MyrFilterRegistration;
 import se.narstrom.myr.servlet.servlet.MyrServletRegistration;
 
@@ -137,6 +139,36 @@ public final class ServletRegistry {
 
 	public Context getContext() {
 		return this.context;
+	}
+
+	public ExecutableFilterChain createFilterChain(final DispatcherType dispatcherType, final Mapping mapping) {
+		final List<MyrFilterRegistration> filters = new ArrayList<>();
+		for (final UrlPatternFilterMapping filterMapping : urlPatternFilterMappings.get(dispatcherType)) {
+			if (filterMapping.uriPattern.matches(mapping.getCanonicalizedPath().toString()))
+				filters.add(filterRegistrations.get(filterMapping.filterName()));
+		}
+
+		final List<String> mappings = servletNameFilterMappings.get(new ServletNameFilterMappingKey(mapping.getServletName(), dispatcherType));
+		if (mappings != null) {
+			for (final String filterName : mappings) {
+				filters.add(filterRegistrations.get(filterName));
+			}
+		}
+
+		return new ExecutableFilterChain(filters, servletRegistrations.get(mapping.getServletName()));
+	}
+
+	public ExecutableFilterChain createFilterChain(final DispatcherType dispatcherType, final String servletName) {
+		final List<MyrFilterRegistration> filters = new ArrayList<>();
+
+		final List<String> mappings = servletNameFilterMappings.get(new ServletNameFilterMappingKey(servletName, dispatcherType));
+		if (mappings != null) {
+			for (final String filterName : mappings) {
+				filters.add(filterRegistrations.get(filterName));
+			}
+		}
+
+		return new ExecutableFilterChain(filters, servletRegistrations.get(servletName));
 	}
 
 	public Mapping findServletRegistrationFromUri(final CanonicalizedPath canonicalizedPath) {

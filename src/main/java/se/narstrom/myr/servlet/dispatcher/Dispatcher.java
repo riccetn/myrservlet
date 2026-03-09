@@ -5,6 +5,7 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
@@ -17,6 +18,7 @@ import se.narstrom.myr.servlet.Mapping;
 import se.narstrom.myr.servlet.async.AsyncHttpRequest;
 import se.narstrom.myr.servlet.async.AsyncRequest;
 import se.narstrom.myr.servlet.context.Context;
+import se.narstrom.myr.servlet.context.ServletRegistry;
 import se.narstrom.myr.servlet.filter.ExecutableFilterChain;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
@@ -30,7 +32,9 @@ public final class Dispatcher implements RequestDispatcher {
 
 	private final Mapping mapping;
 
-	private final ExecutableFilterChain filterChain;
+	private final String servletName;
+
+	private final ServletRegistry registry;
 
 	private final Query query;
 
@@ -38,15 +42,27 @@ public final class Dispatcher implements RequestDispatcher {
 
 	private ServletResponse response = null;;
 
-	public Dispatcher(final Context context, final Mapping mapping, final ExecutableFilterChain filterChain, final Query query) {
+	public Dispatcher(final Context context, final Mapping mapping, final ServletRegistry registry, final Query query) {
 		this.context = context;
 		this.mapping = mapping;
-		this.filterChain = filterChain;
+		this.servletName = null;
+		this.registry = registry;
 		this.query = query;
 	}
 
+	public Dispatcher(final Context context, final String servletName, final ServletRegistry registry) {
+		this.context = context;
+		this.mapping = null;
+		this.servletName = servletName;
+		this.registry = registry;
+		this.query = null;
+	}
+
 	public MyrServletRegistration getRegistration() {
-		return filterChain.getServletRegistration();
+		if (mapping != null)
+			return (MyrServletRegistration) context.getServletRegistration(mapping.getServletName());
+		else
+			return (MyrServletRegistration) context.getServletRegistration(servletName);
 	}
 
 	public Context getContext() {
@@ -80,7 +96,7 @@ public final class Dispatcher implements RequestDispatcher {
 		logger.log(Level.INFO, "DISPATCH for servlet ''{0}'', asyncSupported: {1}", new Object[] { getRegistration().getName(), getRegistration().isAsyncSupported() });
 		request.setDispatcher(this);
 		response.setDispatcher(this);
-		dispatch(request, response);
+		dispatch(request, response, DispatcherType.REQUEST);
 	}
 
 	public void async(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
@@ -90,20 +106,20 @@ public final class Dispatcher implements RequestDispatcher {
 			asyncRequest = new AsyncHttpRequest(httpRequest, this);
 		else
 			asyncRequest = new AsyncRequest(request, this);
-		dispatch(asyncRequest, response);
+		dispatch(asyncRequest, response, DispatcherType.ASYNC);
 	}
 
 	@Override
 	public void forward(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
 		logger.log(Level.INFO, "FORWARD to servlet ''{0}''", getRegistration().getName());
 		response.reset();
-		dispatch(new ForwardRequest((HttpServletRequest) request, this), (HttpServletResponse) response);
+		dispatch(new ForwardRequest((HttpServletRequest) request, this), (HttpServletResponse) response, DispatcherType.FORWARD);
 	}
 
 	@Override
 	public void include(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
 		logger.log(Level.INFO, "INCLUDE to servlet ''{0}''", getRegistration().getName());
-		dispatch(new IncludeRequest((HttpServletRequest) request), new IncludeResponse((HttpServletResponse) response));
+		dispatch(new IncludeRequest((HttpServletRequest) request), new IncludeResponse((HttpServletResponse) response), DispatcherType.INCLUDE);
 	}
 
 	public void error(final Request request, final Response response, final Throwable throwable, final int errorCode) throws ServletException, IOException {
@@ -120,14 +136,20 @@ public final class Dispatcher implements RequestDispatcher {
 		response.reset();
 		response.setStatus(errorCode);
 
-		dispatch(errorRequest, response);
+		dispatch(errorRequest, response, DispatcherType.ERROR);
 	}
 
-	private void dispatch(final ServletRequest request, final ServletResponse response) throws ServletException, IOException {
+	private void dispatch(final ServletRequest request, final ServletResponse response, final DispatcherType dispatcherType) throws ServletException, IOException {
 		Thread.currentThread().setContextClassLoader(context.getClassLoader());
 
 		this.request = request;
 		this.response = response;
+
+		final ExecutableFilterChain filterChain;
+		if (mapping != null)
+			filterChain = registry.createFilterChain(dispatcherType, mapping);
+		else
+			filterChain = registry.createFilterChain(dispatcherType, servletName);
 
 		try {
 			filterChain.doFilter(request, response);

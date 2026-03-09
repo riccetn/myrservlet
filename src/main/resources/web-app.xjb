@@ -2,7 +2,12 @@
 <jaxb:bindings xmlns:jaxb="https://jakarta.ee/xml/ns/jaxb" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:simplify="urn:jaxb.jvnet.org:plugin:simplify" jaxb:extensionBindingPrefixes="simplify" version="3.0">
 	<jaxb:bindings schemaLocation="web-app_6_1.xsd" node="//xsd:complexType[@name='web-appType']">
 		<simplify:property name="moduleNameOrDescriptionAndDisplayName">
-			<simplify:as-element-property />>
+			<simplify:as-element-property />
+		</simplify:property>
+	</jaxb:bindings>
+	<jaxb:bindings schemaLocation="web-common_6_1.xsd" node="//xsd:complexType[@name='filter-mappingType']">
+		<simplify:property name="urlPatternOrServletName">
+			<simplify:as-element-property />
 		</simplify:property>
 	</jaxb:bindings>
 </jaxb:bindings>
