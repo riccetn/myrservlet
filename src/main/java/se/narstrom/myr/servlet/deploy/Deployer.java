@@ -28,9 +28,11 @@ import ee.jakarta.xml.ns.jakartaee.TrueFalseType;
 import ee.jakarta.xml.ns.jakartaee.UrlPatternType;
 import ee.jakarta.xml.ns.jakartaee.WebAppType;
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
 import jakarta.servlet.FilterRegistration;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletRegistration;
+import jakarta.servlet.annotation.WebFilter;
 import jakarta.servlet.annotation.WebInitParam;
 import jakarta.servlet.annotation.WebListener;
 import jakarta.servlet.annotation.WebServlet;
@@ -192,6 +194,27 @@ public final class Deployer {
 			registration.addMapping(webServlet.urlPatterns());
 			registration.addMapping(webServlet.value());
 			registration.setAsyncSupported(webServlet.asyncSupported());
+		}
+
+		final WebFilter webFilter = clazz.getAnnotation(WebFilter.class);
+		if (webFilter != null && Filter.class.isAssignableFrom(clazz)) {
+			String name = webFilter.filterName();
+			if (name.equals(""))
+				name = clazz.getName();
+
+			final FilterRegistration.Dynamic registration = context.addFilter(name, (Class<? extends Filter>) clazz);
+			for (final WebInitParam param : webFilter.initParams()) {
+				registration.setInitParameter(param.name(), param.value());
+			}
+
+			final EnumSet<DispatcherType> dispatcherTypes = EnumSet.noneOf(DispatcherType.class);
+			for (final DispatcherType dispatcherType : webFilter.dispatcherTypes()) {
+				dispatcherTypes.add(dispatcherType);
+			}
+
+			registration.addMappingForUrlPatterns(dispatcherTypes, true, webFilter.urlPatterns());
+			registration.addMappingForServletNames(dispatcherTypes, true, webFilter.servletNames());
+			// registration.setAsyncSupported(webFilter.asyncSupported());
 		}
 
 		final WebListener webListener = clazz.getAnnotation(WebListener.class);

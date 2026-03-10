@@ -184,6 +184,8 @@
 						<include>servlet/tck/spec/servletmapping/*Tests.java</include>
 						<include>servlet/tck/spec/servletresponse/*Tests.java</include>
 						<include>servlet/tck/spec/webapps/accesswebinf/*Tests.java</include>
+						<include>servlet/tck/spec/annotationservlet/webfilter/*Tests.java</include>
+						<include>servlet/tck/spec/annotationservlet/webservlet/*Tests.java</include>
 					</includes>
 				</configuration>
 			</plugin>
