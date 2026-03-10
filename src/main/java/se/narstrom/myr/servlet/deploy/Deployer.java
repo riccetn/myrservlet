@@ -44,10 +44,22 @@ import se.narstrom.myr.servlet.session.SessionManager;
 public final class Deployer {
 
 	public static final Context deploy(final String contextPath, final Path base, final SessionManager sessionManager, final Container container) throws IOException {
-		final Path descriptor = base.resolve("WEB-INF/web.xml");
-		final WebAppType webApp = JAXB.unmarshal(descriptor.toFile(), WebAppType.class);
-
 		final Context context = new Context(contextPath, base, sessionManager, container);
+
+		final Path descriptor = base.resolve("WEB-INF/web.xml");
+		if (Files.exists(descriptor))
+			parseDeplymentDescriptor(context, descriptor);
+
+		scanForAnnotations(context);
+
+		final ServletRegistration.Dynamic registration = context.addServlet("Default Servlet", new DefaultServlet());
+		registration.addMapping("/");
+
+		return context;
+	}
+
+	public static final void parseDeplymentDescriptor(final Context context, final Path descriptor) {
+		final WebAppType webApp = JAXB.unmarshal(descriptor.toFile(), WebAppType.class);
 
 		context.setServletContextName(webApp.getDisplayName().getFirst().getValue());
 
@@ -138,13 +150,6 @@ public final class Deployer {
 		for (final MimeMappingType mapping : webApp.getMimeMapping()) {
 			context.addMimeTypeMapping(mapping.getExtension().getValue(), mapping.getMimeType().getValue());
 		}
-
-		final ServletRegistration.Dynamic registration = context.addServlet("Default Servlet", new DefaultServlet());
-		registration.addMapping("/");
-
-		scanForAnnotations(context);
-
-		return context;
 	}
 
 	private static void scanForAnnotations(final Context context) throws IOException {
@@ -177,7 +182,10 @@ public final class Deployer {
 
 		final WebServlet webServlet = clazz.getAnnotation(WebServlet.class);
 		if (webServlet != null && Servlet.class.isAssignableFrom(clazz)) {
-			final ServletRegistration.Dynamic registration = context.addServlet(webServlet.name(), (Class<? extends Servlet>) clazz);
+			String name = webServlet.name();
+			if (name.equals(""))
+				name = clazz.getName();
+			final ServletRegistration.Dynamic registration = context.addServlet(name, (Class<? extends Servlet>) clazz);
 			for (final WebInitParam param : webServlet.initParams()) {
 				registration.setInitParameter(param.name(), param.value());
 			}
