@@ -76,6 +76,10 @@
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
+					<groupId>jakarta.tck</groupId>
+					<artifactId>sigtest-maven-plugin</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>org.jboss.arquillian.junit</groupId>
 					<artifactId>arquillian-junit-core</artifactId>
 				</exclusion>
@@ -185,7 +189,10 @@
 						<include>servlet/tck/spec/servletresponse/*Tests.java</include>
 						<include>servlet/tck/spec/webapps/accesswebinf/*Tests.java</include>
 						<include>servlet/tck/spec/annotationservlet/webfilter/*Tests.java</include>
+						<include>servlet/tck/spec/annotationservlet/weblistener/*Tests.java</include>
 						<include>servlet/tck/spec/annotationservlet/webservlet/*Tests.java</include>
+						<include>servlet/tck/spec/annotationservlet/webservletapi/*Tests.java</include>
+						<include>servlet/tck/spec/annotationservlet/webservletdd/*Tests.java</include>
 					</includes>
 				</configuration>
 			</plugin>

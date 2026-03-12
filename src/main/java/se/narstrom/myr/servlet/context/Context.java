@@ -37,14 +37,21 @@ import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletRequestAttributeEvent;
+import jakarta.servlet.ServletRequestAttributeListener;
+import jakarta.servlet.ServletRequestEvent;
+import jakarta.servlet.ServletRequestListener;
 import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.SessionTrackingMode;
 import jakarta.servlet.UnavailableException;
 import jakarta.servlet.descriptor.JspConfigDescriptor;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSessionAttributeListener;
 import jakarta.servlet.http.HttpSessionEvent;
 import jakarta.servlet.http.HttpSessionIdListener;
+import jakarta.servlet.http.HttpSessionListener;
 import se.narstrom.myr.http.v1.RequestTarget;
 import se.narstrom.myr.servlet.CanonicalizedPath;
 import se.narstrom.myr.servlet.InitParameters;
@@ -58,7 +65,6 @@ import se.narstrom.myr.servlet.response.Response;
 import se.narstrom.myr.servlet.servlet.MyrServletRegistration;
 import se.narstrom.myr.servlet.session.Session;
 import se.narstrom.myr.servlet.session.SessionManager;
-import se.narstrom.myr.uri.Query;
 
 // 4. Servlet Context
 // ==================
@@ -120,6 +126,8 @@ public final class Context implements AutoCloseable, ServletContext {
 
 		final String path = uri.substring(contextPath.length());
 
+		fireRequestInitialized(request);
+
 		final AsyncHandler async = new AsyncHandler(this, path, request, response);
 		try {
 			async.service();
@@ -131,6 +139,8 @@ public final class Context implements AutoCloseable, ServletContext {
 
 			if (!response.isCommitted())
 				handleException(request, response, ex);
+		} finally {
+			fireRequestDestroyed(request);
 		}
 	}
 
@@ -299,6 +309,8 @@ public final class Context implements AutoCloseable, ServletContext {
 	// ========================================================
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#programmatically-adding-and-configuring-listeners
 	private final List<ServletContextListener> servletContextListeners = new CopyOnWriteArrayList<>();
+	private final List<ServletRequestListener> servletRequestListeners = new CopyOnWriteArrayList<>();
+	private final List<ServletRequestAttributeListener> servletRequestAttributeListeners = new CopyOnWriteArrayList<>();
 	private final List<HttpSessionIdListener> sessionIdListeners = new CopyOnWriteArrayList<>();
 
 	@Override
@@ -319,6 +331,14 @@ public final class Context implements AutoCloseable, ServletContext {
 			servletContextListeners.add(l);
 		if (listener instanceof ServletContextAttributeListener l)
 			attributes.addAttributeListener(new ContextAttributeListener(this, l));
+		if (listener instanceof ServletRequestListener l)
+			servletRequestListeners.add(l);
+		if (listener instanceof ServletRequestAttributeListener l)
+			servletRequestAttributeListeners.add(l);
+		if (listener instanceof HttpSessionListener l)
+			sessionManager.addSessionListener(l);
+		if (listener instanceof HttpSessionAttributeListener l)
+			sessionManager.addAttributeListener(l);
 		if (listener instanceof HttpSessionIdListener l)
 			sessionIdListeners.add(l);
 	}
@@ -345,6 +365,41 @@ public final class Context implements AutoCloseable, ServletContext {
 		final HttpSessionEvent event = new HttpSessionEvent(session);
 		for (final HttpSessionIdListener listener : sessionIdListeners) {
 			listener.sessionIdChanged(event, newId);
+		}
+	}
+
+	private void fireRequestInitialized(final ServletRequest request) {
+		final ServletRequestEvent event = new ServletRequestEvent(this, request);
+		for (final ServletRequestListener listener : servletRequestListeners) {
+			listener.requestInitialized(event);
+		}
+	}
+
+	private void fireRequestDestroyed(final ServletRequest request) {
+		final ServletRequestEvent event = new ServletRequestEvent(this, request);
+		for (final ServletRequestListener listener : servletRequestListeners.reversed()) {
+			listener.requestDestroyed(event);
+		}
+	}
+
+	public void fireServletRequestAttributeAdded(final ServletRequest request, final String name, final Object value) {
+		final ServletRequestAttributeEvent event = new ServletRequestAttributeEvent(this, request, name, value);
+		for (final ServletRequestAttributeListener listener : servletRequestAttributeListeners) {
+			listener.attributeAdded(event);
+		}
+	}
+
+	public void fireServletRequestAttributeReplaced(final ServletRequest request, final String name, final Object value) {
+		final ServletRequestAttributeEvent event = new ServletRequestAttributeEvent(this, request, name, value);
+		for (final ServletRequestAttributeListener listener : servletRequestAttributeListeners) {
+			listener.attributeReplaced(event);
+		}
+	}
+
+	public void fireServletRequestAttributeRemoved(final ServletRequest request, final String name, final Object value) {
+		final ServletRequestAttributeEvent event = new ServletRequestAttributeEvent(this, request, name, value);
+		for (final ServletRequestAttributeListener listener : servletRequestAttributeListeners) {
+			listener.attributeRemoved(event);
 		}
 	}
 

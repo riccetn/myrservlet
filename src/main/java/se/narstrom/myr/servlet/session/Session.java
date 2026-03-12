@@ -6,9 +6,15 @@ import java.util.Enumeration;
 
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpSession;
+import se.narstrom.myr.servlet.attributes.AttributeEvent;
+import se.narstrom.myr.servlet.attributes.AttributeListener;
 import se.narstrom.myr.servlet.attributes.Attributes;
 
-public final class Session implements HttpSession {
+public final class Session implements HttpSession, AttributeListener {
+	private final SessionManager manager;
+
+	private final ServletContext context;
+
 	private final Attributes attributes = new Attributes();
 
 	private String sessionId;
@@ -17,8 +23,11 @@ public final class Session implements HttpSession {
 
 	private Duration maxInactiveInterval = Duration.ofMinutes(30);
 
-	public Session(final String sessionId) {
+	public Session(final SessionManager manager, final ServletContext context, final String sessionId) {
+		this.manager = manager;
+		this.context = context;
 		this.sessionId = sessionId;
+		this.attributes.addAttributeListener(this);
 	}
 
 	@Override
@@ -42,7 +51,7 @@ public final class Session implements HttpSession {
 
 	@Override
 	public ServletContext getServletContext() {
-		throw new UnsupportedOperationException();
+		return context;
 	}
 
 	@Override
@@ -77,7 +86,7 @@ public final class Session implements HttpSession {
 
 	@Override
 	public void invalidate() {
-		throw new UnsupportedOperationException();
+		manager.invalidateSession(this);
 	}
 
 	@Override
@@ -88,5 +97,20 @@ public final class Session implements HttpSession {
 
 	void setId(final String sessionId) {
 		this.sessionId = sessionId;
+	}
+
+	@Override
+	public void attributeAdded(AttributeEvent event) {
+		manager.fireAttributeAdded(this, event.getName(), event.getValue());
+	}
+
+	@Override
+	public void attributeReplaced(AttributeEvent event) {
+		manager.fireAttributeReplaced(this, event.getName(), event.getValue());
+	}
+
+	@Override
+	public void attributeRemoved(AttributeEvent event) {
+		manager.fireAttributeRemoved(this, event.getName());
 	}
 }

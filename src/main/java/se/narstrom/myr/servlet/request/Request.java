@@ -68,6 +68,7 @@ public class Request implements HttpServletRequest {
 
 	public void setDispatcher(final Dispatcher dispatcher) {
 		this.dispatcher = dispatcher;
+		attributes.addAttributeListener(new RequestAttributeListener(dispatcher.getContext(), this));
 	}
 
 	// 2.3.3.3. Asynchronous processing
@@ -517,7 +518,7 @@ public class Request implements HttpServletRequest {
 
 			final ServletResponse response = dispatcher.getResponse();
 			if (session == null && create && !response.isCommitted()) {
-				session = sessionManager.createSession(contextName, remoteAddr);
+				session = sessionManager.createSession(getServletContext(), remoteAddr);
 			}
 		}
 	}
