@@ -16,6 +16,8 @@ import java.util.Locale;
 import ee.jakarta.xml.ns.jakartaee.ErrorPageType;
 import ee.jakarta.xml.ns.jakartaee.FilterMappingType;
 import ee.jakarta.xml.ns.jakartaee.FilterType;
+import ee.jakarta.xml.ns.jakartaee.FullyQualifiedClassType;
+import ee.jakarta.xml.ns.jakartaee.JspFileType;
 import ee.jakarta.xml.ns.jakartaee.ListenerType;
 import ee.jakarta.xml.ns.jakartaee.LocaleEncodingMappingListType;
 import ee.jakarta.xml.ns.jakartaee.LocaleEncodingMappingType;
@@ -74,10 +76,19 @@ public final class Deployer {
 		}
 
 		for (final ServletType servlet : webApp.getServlet()) {
-			final String className = servlet.getServletClass().getValue();
+			final FullyQualifiedClassType className = servlet.getServletClass();
+			final JspFileType jspFile = servlet.getJspFile();
 			final String servletName = servlet.getServletName().getValue();
 
-			final ServletRegistration.Dynamic registration = context.addServlet(servletName, className);
+
+			final ServletRegistration.Dynamic registration;
+			if (className != null) {
+				registration = context.addServlet(servletName, className.getValue());
+			} else if (jspFile != null) {
+				registration = context.addJspFile(servletName, jspFile.getValue());
+			} else {
+				throw new IllegalArgumentException("<servlet> without <servlet-class> or <jsp-file>");
+			}
 
 			for (final ParamValueType param : servlet.getInitParam()) {
 				registration.setInitParameter(param.getParamName().getValue(), param.getParamValue().getValue());

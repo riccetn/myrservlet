@@ -27,6 +27,8 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import org.apache.jasper.servlet.JspServlet;
+
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterRegistration;
@@ -243,7 +245,9 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public ServletRegistration.Dynamic addJspFile(final String servletName, final String jspFile) {
-		throw new UnsupportedOperationException();
+		final ServletRegistration.Dynamic registration = addServlet(servletName, JspServlet.class);
+		registration.setInitParameter("jspFile", jspFile);
+		return registration;
 	}
 
 	@Override
@@ -637,20 +641,23 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public String getMimeType(final String file) {
+		String mediaType = null;
 		try {
 			final Path path = Paths.get(getRealPath(file));
 			final String filename = path.getFileName().toString();
 			final int dot = filename.lastIndexOf('.');
 			if (dot != -1) {
 				final String fileext = filename.substring(dot + 1);
-				final String mediaType = mimeTypeMappings.get(fileext);
-				if (mediaType != null)
-					return mediaType;
+				mediaType = mimeTypeMappings.get(fileext);
 			}
-			return Files.probeContentType(path);
-		} catch (IOException _) {
-			return "application/octet-stream";
+
+			if (mediaType == null)
+				mediaType = Files.probeContentType(path);
+		} catch (final IOException _) {
+			/* Ignore */
 		}
+
+		return mediaType;
 	}
 
 	@Override

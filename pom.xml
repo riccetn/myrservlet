@@ -50,6 +50,17 @@
 			<artifactId>jakarta.xml.bind-api</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.tomcat</groupId>
+			<artifactId>tomcat-jasper</artifactId>
+			<version>11.0.18</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.tomcat</groupId>
+					<artifactId>tomcat-servlet-api</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
 			<groupId>org.glassfish.jaxb</groupId>
 			<artifactId>jaxb-runtime</artifactId>
 			<scope>runtime</scope>
@@ -179,6 +190,11 @@
 						<include>servlet/tck/api/jakarta_servlet_http/httpsessionbindinglistener40/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet_http/httpsessionidlistener/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet_http/httpsessionlistener40/*Tests.java</include>
+						<include>servlet/tck/spec/annotationservlet/webfilter/*Tests.java</include>
+						<include>servlet/tck/spec/annotationservlet/weblistener/*Tests.java</include>
+						<include>servlet/tck/spec/annotationservlet/webservlet/*Tests.java</include>
+						<include>servlet/tck/spec/annotationservlet/webservletapi/*Tests.java</include>
+						<include>servlet/tck/spec/annotationservlet/webservletdd/*Tests.java</include>
 						<include>servlet/tck/spec/defaultcontextpath/*Tests.java</include>
 						<include>servlet/tck/spec/defaultmapping/*Tests.java</include>
 						<include>servlet/tck/spec/dir_struct/*Tests.java</include>
@@ -188,11 +204,6 @@
 						<include>servlet/tck/spec/servletmapping/*Tests.java</include>
 						<include>servlet/tck/spec/servletresponse/*Tests.java</include>
 						<include>servlet/tck/spec/webapps/accesswebinf/*Tests.java</include>
-						<include>servlet/tck/spec/annotationservlet/webfilter/*Tests.java</include>
-						<include>servlet/tck/spec/annotationservlet/weblistener/*Tests.java</include>
-						<include>servlet/tck/spec/annotationservlet/webservlet/*Tests.java</include>
-						<include>servlet/tck/spec/annotationservlet/webservletapi/*Tests.java</include>
-						<include>servlet/tck/spec/annotationservlet/webservletdd/*Tests.java</include>
 					</includes>
 				</configuration>
 			</plugin>
