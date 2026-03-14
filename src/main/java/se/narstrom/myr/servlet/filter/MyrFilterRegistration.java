@@ -2,7 +2,6 @@ package se.narstrom.myr.servlet.filter;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -41,6 +40,8 @@ public final class MyrFilterRegistration implements FilterRegistration.Dynamic {
 	private Class<? extends Filter> filterClass;
 
 	private Filter filter;
+
+	private volatile boolean asyncSupported = false;
 
 	public MyrFilterRegistration(final ServletRegistry registry, final String name, final String className) {
 		this.registry = registry;
@@ -124,8 +125,21 @@ public final class MyrFilterRegistration implements FilterRegistration.Dynamic {
 	}
 
 	@Override
-	public void setAsyncSupported(boolean isAsyncSupported) {
-		throw new UnsupportedOperationException();
+	public void setAsyncSupported(boolean asyncSupported) {
+		if (inited.get())
+			throw new IllegalStateException("Filter already inited");
+		initLock.lock();
+		try {
+			if (inited.get())
+				throw new IllegalStateException("Filter already inited");
+			this.asyncSupported = asyncSupported;
+		} finally {
+			initLock.unlock();
+		}
+	}
+
+	public boolean isAsyncSupported() {
+		return asyncSupported;
 	}
 
 	public void service(final ServletRequest trquest, final ServletResponse response, final FilterChain chain) throws IOException, ServletException {

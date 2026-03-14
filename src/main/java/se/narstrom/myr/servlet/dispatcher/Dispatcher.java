@@ -32,9 +32,9 @@ public final class Dispatcher implements RequestDispatcher {
 
 	private final Mapping mapping;
 
-	private final String servletName;
-
 	private final ServletRegistry registry;
+
+	private final MyrServletRegistration servletRegistration;
 
 	private final Query query;
 
@@ -45,7 +45,7 @@ public final class Dispatcher implements RequestDispatcher {
 	public Dispatcher(final Context context, final Mapping mapping, final ServletRegistry registry, final Query query) {
 		this.context = context;
 		this.mapping = mapping;
-		this.servletName = null;
+		this.servletRegistration = registry.getServletRegistration(mapping.getServletName());
 		this.registry = registry;
 		this.query = query;
 	}
@@ -53,16 +53,13 @@ public final class Dispatcher implements RequestDispatcher {
 	public Dispatcher(final Context context, final String servletName, final ServletRegistry registry) {
 		this.context = context;
 		this.mapping = null;
-		this.servletName = servletName;
+		this.servletRegistration = registry.getServletRegistration(servletName);
 		this.registry = registry;
 		this.query = null;
 	}
 
 	public MyrServletRegistration getRegistration() {
-		if (mapping != null)
-			return (MyrServletRegistration) context.getServletRegistration(mapping.getServletName());
-		else
-			return (MyrServletRegistration) context.getServletRegistration(servletName);
+		return servletRegistration;
 	}
 
 	public Context getContext() {
@@ -83,6 +80,10 @@ public final class Dispatcher implements RequestDispatcher {
 
 	public Query getQuery() {
 		return this.query;
+	}
+
+	public boolean isAsyncSupported() {
+		return getRegistration().isAsyncSupported();
 	}
 
 	public Request getOriginalRequest() {
@@ -149,7 +150,7 @@ public final class Dispatcher implements RequestDispatcher {
 		if (mapping != null)
 			filterChain = registry.createFilterChain(dispatcherType, mapping);
 		else
-			filterChain = registry.createFilterChain(dispatcherType, servletName);
+			filterChain = registry.createFilterChain(dispatcherType, servletRegistration.getName());
 
 		try {
 			filterChain.doFilter(request, response);

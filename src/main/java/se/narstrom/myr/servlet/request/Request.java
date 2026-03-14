@@ -103,7 +103,7 @@ public class Request implements HttpServletRequest {
 
 	@Override
 	public boolean isAsyncSupported() {
-		return dispatcher.getRegistration().isAsyncSupported();
+		return dispatcher.isAsyncSupported();
 	}
 
 	@Override
