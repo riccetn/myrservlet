@@ -190,20 +190,17 @@
 						<include>servlet/tck/api/jakarta_servlet_http/httpsessionbindinglistener40/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet_http/httpsessionidlistener/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet_http/httpsessionlistener40/*Tests.java</include>
-						<include>servlet/tck/spec/annotationservlet/webfilter/*Tests.java</include>
-						<include>servlet/tck/spec/annotationservlet/weblistener/*Tests.java</include>
-						<include>servlet/tck/spec/annotationservlet/webservlet/*Tests.java</include>
-						<include>servlet/tck/spec/annotationservlet/webservletapi/*Tests.java</include>
-						<include>servlet/tck/spec/annotationservlet/webservletdd/*Tests.java</include>
+						<include>servlet/tck/spec/annotationservlet/**/*Tests.java</include>
 						<include>servlet/tck/spec/defaultcontextpath/*Tests.java</include>
 						<include>servlet/tck/spec/defaultmapping/*Tests.java</include>
 						<include>servlet/tck/spec/dir_struct/*Tests.java</include>
-						<include>servlet/tck/spec/protocols/http/*Tests.java</include>
+						<include>servlet/tck/spec/protocols/**/*Tests.java</include>
 						<include>servlet/tck/spec/rdspecialchar/*Tests.java</include>
 						<include>servlet/tck/spec/requestmap/*Tests.java</include>
 						<include>servlet/tck/spec/servletmapping/*Tests.java</include>
 						<include>servlet/tck/spec/servletresponse/*Tests.java</include>
-						<include>servlet/tck/spec/webapps/accesswebinf/*Tests.java</include>
+						<include>servlet/tck/spec/webapps/**/*Tests.java</include>
+						<include>servlet/tck/spec/welcomefiles/*Tests.java</include>
 					</includes>
 				</configuration>
 			</plugin>

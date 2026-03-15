@@ -16,7 +16,7 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import se.narstrom.myr.servlet.Parameters;
 
 public abstract class DispatcherHttpRequest extends HttpServletRequestWrapper {
-	private final Dispatcher dispatcher;
+	protected final Dispatcher dispatcher;
 
 	private Parameters parameters = null;
 

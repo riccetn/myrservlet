@@ -12,4 +12,22 @@ public final class ForwardRequest extends DispatcherHttpRequest {
 	public DispatcherType getDispatcherType() {
 		return DispatcherType.FORWARD;
 	}
+
+	@Override
+	public String getServletPath() {
+		return dispatcher.getMapping().getServletPath();
+	}
+
+	@Override
+	public String getPathInfo() {
+		return dispatcher.getMapping().getPathInfo();
+	}
+
+	@Override
+	public String getPathTranslated() {
+		final String pathInfo = getPathInfo();
+		if (pathInfo == null)
+			return null;
+		return dispatcher.getContext().getRealPath(pathInfo);
+	}
 }

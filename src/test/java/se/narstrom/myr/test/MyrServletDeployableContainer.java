@@ -140,7 +140,8 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 
 		final Context context;
 		try {
-			context = Deployer.deploy(contextPath, deploymentPath, sessionManager, container);
+			final Deployer deployer = new Deployer();
+			context = deployer.deploy(contextPath, deploymentPath, sessionManager, container);
 			context.init();
 		} catch (final IOException ex) {
 			throw new DeploymentException(name, ex);

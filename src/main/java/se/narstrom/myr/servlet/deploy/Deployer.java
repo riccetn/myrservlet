@@ -29,6 +29,7 @@ import ee.jakarta.xml.ns.jakartaee.ServletType;
 import ee.jakarta.xml.ns.jakartaee.TrueFalseType;
 import ee.jakarta.xml.ns.jakartaee.UrlPatternType;
 import ee.jakarta.xml.ns.jakartaee.WebAppType;
+import ee.jakarta.xml.ns.jakartaee.WelcomeFileListType;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterRegistration;
@@ -46,8 +47,9 @@ import se.narstrom.myr.servlet.context.ServletClassLoader;
 import se.narstrom.myr.servlet.session.SessionManager;
 
 public final class Deployer {
+	private List<String> welcomeFiles = null;
 
-	public static final Context deploy(final String contextPath, final Path base, final SessionManager sessionManager, final Container container) throws IOException {
+	public final Context deploy(final String contextPath, final Path base, final SessionManager sessionManager, final Container container) throws IOException {
 		final Context context = new Context(contextPath, base, sessionManager, container);
 
 		final Path descriptor = base.resolve("WEB-INF/web.xml");
@@ -56,13 +58,17 @@ public final class Deployer {
 
 		scanForAnnotations(context);
 
-		final ServletRegistration.Dynamic registration = context.addServlet("Default Servlet", new DefaultServlet());
+		final DefaultServlet defaultServlet = new DefaultServlet();
+		if (welcomeFiles != null)
+			defaultServlet.setWelcomeFiles(welcomeFiles);
+
+		final ServletRegistration.Dynamic registration = context.addServlet("Default Servlet", defaultServlet);
 		registration.addMapping("/");
 
 		return context;
 	}
 
-	public static final void parseDeplymentDescriptor(final Context context, final Path descriptor) {
+	public final void parseDeplymentDescriptor(final Context context, final Path descriptor) {
 		final WebAppType webApp = JAXB.unmarshal(descriptor.toFile(), WebAppType.class);
 
 		context.setServletContextName(webApp.getDisplayName().getFirst().getValue());
@@ -153,7 +159,7 @@ public final class Deployer {
 
 		final List<LocaleEncodingMappingListType> localeMappingLists = webApp.getLocaleEncodingMappingList();
 		if (localeMappingLists.size() > 1)
-			throw new IllegalArgumentException("Invalid deployment descriptor: contains more then one locale-encoding-mappig-list");
+			throw new IllegalArgumentException("Invalid deployment descriptor: contains more then one <locale-encoding-mappig-list>");
 		if (localeMappingLists.size() == 1) {
 			for (final LocaleEncodingMappingType mapping : webApp.getLocaleEncodingMappingList().getFirst().getLocaleEncodingMapping()) {
 				context.addLocaleEncodingMapping(Locale.forLanguageTag(mapping.getLocale()), Charset.forName(mapping.getEncoding()));
@@ -163,9 +169,16 @@ public final class Deployer {
 		for (final MimeMappingType mapping : webApp.getMimeMapping()) {
 			context.addMimeTypeMapping(mapping.getExtension().getValue(), mapping.getMimeType().getValue());
 		}
+
+		final List<WelcomeFileListType> welcomeFileLists = webApp.getWelcomeFileList();
+		if (welcomeFileLists.size() > 1)
+			throw new IllegalArgumentException("Invalid deployment desxriptor: contains more then one <welcome-file-list>");
+		if (welcomeFileLists.size() == 1) {
+			welcomeFiles = welcomeFileLists.getFirst().getWelcomeFile();
+		}
 	}
 
-	private static void scanForAnnotations(final Context context) throws IOException {
+	private void scanForAnnotations(final Context context) throws IOException {
 		final ServletClassLoader classLoader = (ServletClassLoader) context.getClassLoader();
 		final Path dir = Path.of(context.getRealPath("/"), "WEB-INF", "classes");
 
@@ -181,7 +194,7 @@ public final class Deployer {
 		});
 	}
 
-	private static void scanForAnnotations_visitClassFile(final Context context, final ServletClassLoader classLoader, final Path file) throws IOException {
+	private void scanForAnnotations_visitClassFile(final Context context, final ServletClassLoader classLoader, final Path file) throws IOException {
 		final String pathString = file.toString();
 		if (!pathString.endsWith(".class"))
 			return;

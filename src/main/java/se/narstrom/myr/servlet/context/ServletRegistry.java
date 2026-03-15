@@ -226,7 +226,7 @@ public final class ServletRegistry {
 
 		if (servletName == null) {
 			servletName = defaultMapping.get();
-			mapping = new Mapping(MappingMatch.DEFAULT, "/", "", canonicalizedPath, uri, uri, servletName);
+			mapping = new Mapping(MappingMatch.DEFAULT, "/", "", canonicalizedPath, "", uri, servletName);
 		}
 
 		if (servletName == null) {
