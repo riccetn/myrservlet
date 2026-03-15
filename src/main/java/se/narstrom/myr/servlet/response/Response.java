@@ -28,6 +28,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.mime.MediaType;
+import se.narstrom.myr.servlet.context.Context;
 import se.narstrom.myr.servlet.dispatcher.Dispatcher;
 import se.narstrom.myr.util.Result;
 
@@ -205,12 +206,8 @@ public class Response implements HttpServletResponse {
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#convenience-methods
 	@Override
 	public void sendError(final int statusCode, final String message) throws IOException {
-		reset();
-		setStatus(statusCode);
-		setContentType("text/plain");
-		setContentLength(message.length());
-		getWriter().write(message);
-		flushBuffer();
+		final Context context = this.dispatcher.getContext();
+		context.handleError(dispatcher.getOriginalRequest(), this, statusCode, message, null);
 	}
 
 	@Override

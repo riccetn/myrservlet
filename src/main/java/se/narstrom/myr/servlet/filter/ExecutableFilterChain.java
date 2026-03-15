@@ -28,7 +28,8 @@ public final class ExecutableFilterChain implements FilterChain {
 		++index;
 		try {
 			if (index < filters.size()) {
-				filters.get(index).service(request, response, this);
+				final MyrFilterRegistration filter = filters.get(index);
+				filter.service(request, response, this);
 			} else {
 				servlet.service(request, response);
 			}

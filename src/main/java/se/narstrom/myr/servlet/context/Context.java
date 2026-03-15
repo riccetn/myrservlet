@@ -151,33 +151,36 @@ public final class Context implements AutoCloseable, ServletContext {
 			final String path = getExceptionMapping(ex);
 
 			if (path != null) {
-				getRequestDispatcher(path).error(request, response, ex, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+				getRequestDispatcher(path).error(request, response, ex, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, null);
 				return;
 			}
 
 			if (ex instanceof ServletException sex) {
 				final Throwable cause = sex.getRootCause();
-				if (cause != null)
+				if (cause != null) {
 					handleException(request, response, sex.getRootCause());
+					return;
+				}
 			}
 
 			switch (ex) {
-				case UnavailableException uex when !uex.isPermanent() -> handleError(request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, ex);
-				case UnavailableException _ -> handleError(request, response, HttpServletResponse.SC_NOT_FOUND, ex);
-				case FileNotFoundException _ -> handleError(request, response, HttpServletResponse.SC_NOT_FOUND, ex);
-				default -> handleError(request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ex);
+				case UnavailableException uex when !uex.isPermanent() -> handleError(request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, null, ex);
+				case UnavailableException _ -> handleError(request, response, HttpServletResponse.SC_NOT_FOUND, null, ex);
+				case FileNotFoundException _ -> handleError(request, response, HttpServletResponse.SC_NOT_FOUND, null, ex);
+				default -> handleError(request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, null, ex);
 			}
 		} catch (final ServletException | IOException ex2) {
 			logger.log(Level.SEVERE, "Error in error-page dispatch", ex2);
 		}
 	}
 
-	private void handleError(final Request request, final Response response, final int status, final Throwable ex) {
+	public void handleError(final Request request, final Response response, final int status, String message, final Throwable ex) {
 		try {
 			final String path = getErrorMapping(status);
 
 			if (path == null) {
-				String message = ex.getMessage();
+				if (message == null)
+					message = ex.getMessage();
 				if (message == null)
 					message = "Unknown Error";
 				response.reset();
@@ -189,7 +192,7 @@ public final class Context implements AutoCloseable, ServletContext {
 				return;
 			}
 
-			getRequestDispatcher(path).error(request, response, ex, status);
+			getRequestDispatcher(path).error(request, response, ex, status, message);
 		} catch (final ServletException | IOException ex2) {
 			logger.log(Level.SEVERE, "Error in error-page dispatch", ex2);
 		}

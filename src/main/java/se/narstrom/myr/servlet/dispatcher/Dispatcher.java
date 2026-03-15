@@ -123,16 +123,22 @@ public final class Dispatcher implements RequestDispatcher {
 		dispatch(new IncludeRequest((HttpServletRequest) request), new IncludeResponse((HttpServletResponse) response), DispatcherType.INCLUDE);
 	}
 
-	public void error(final Request request, final Response response, final Throwable throwable, final int errorCode) throws ServletException, IOException {
-		final ErrorRequest errorRequest = new ErrorRequest(request);
-		errorRequest.setAttribute(ERROR_EXCEPTION, throwable);
-		errorRequest.setAttribute(ERROR_EXCEPTION_TYPE, throwable.getClass());
-		errorRequest.setAttribute(ERROR_MESSAGE, throwable.getMessage());
+	public void error(final Request request, final Response response, final Throwable throwable, final int errorCode, final String message) throws ServletException, IOException {
+		logger.log(Level.INFO, "ERROR to servlet ''{0}''", getRegistration().getName());
+		final ErrorRequest errorRequest = new ErrorRequest(request, this);
+		if (throwable != null) {
+			errorRequest.setAttribute(ERROR_EXCEPTION, throwable);
+			errorRequest.setAttribute(ERROR_EXCEPTION_TYPE, throwable.getClass());
+			errorRequest.setAttribute(ERROR_MESSAGE, throwable.getMessage());
+		}
+		if (message != null) {
+			errorRequest.setAttribute(ERROR_MESSAGE, message);
+		}
 		errorRequest.setAttribute(ERROR_METHOD, request.getMethod());
 		errorRequest.setAttribute(ERROR_QUERY_STRING, request.getQueryString());
 		errorRequest.setAttribute(ERROR_REQUEST_URI, request.getRequestURI());
 		errorRequest.setAttribute(ERROR_STATUS_CODE, errorCode);
-		errorRequest.setAttribute(ERROR_SERVLET_NAME, "TODO: Get servlet name");
+		errorRequest.setAttribute(ERROR_SERVLET_NAME, request.getHttpServletMapping().getServletName());
 
 		response.reset();
 		response.setStatus(errorCode);

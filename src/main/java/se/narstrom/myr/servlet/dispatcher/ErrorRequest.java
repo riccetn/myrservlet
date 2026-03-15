@@ -1,12 +1,11 @@
 package se.narstrom.myr.servlet.dispatcher;
 
 import jakarta.servlet.DispatcherType;
-import jakarta.servlet.http.HttpServletRequestWrapper;
 import se.narstrom.myr.servlet.request.Request;
 
-public final class ErrorRequest extends HttpServletRequestWrapper {
-	public ErrorRequest(final Request request) {
-		super(request);
+public final class ErrorRequest extends DispatcherHttpRequest {
+	public ErrorRequest(final Request request, final Dispatcher dispatcher) {
+		super(request, dispatcher);
 	}
 
 	@Override

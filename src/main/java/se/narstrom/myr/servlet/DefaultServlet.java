@@ -21,8 +21,9 @@ public final class DefaultServlet extends HttpServlet {
 	@Override
 	protected void doGet(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
 		final String pathTranslated = request.getPathTranslated();
-		if (pathTranslated == null)
-			throw new FileNotFoundException();
+		if (pathTranslated == null) {
+			throw new FileNotFoundException(request.getPathInfo());
+		}
 
 		final Path path = Path.of(pathTranslated);
 

@@ -26,6 +26,24 @@ public abstract class DispatcherHttpRequest extends HttpServletRequestWrapper {
 	}
 
 	@Override
+	public String getServletPath() {
+		return dispatcher.getMapping().getServletPath();
+	}
+
+	@Override
+	public String getPathInfo() {
+		return dispatcher.getMapping().getPathInfo();
+	}
+
+	@Override
+	public String getPathTranslated() {
+		final String pathInfo = getPathInfo();
+		if (pathInfo == null)
+			return null;
+		return dispatcher.getContext().getRealPath(pathInfo);
+	}
+
+	@Override
 	public HttpServletMapping getHttpServletMapping() {
 		HttpServletMapping mapping = dispatcher.getMapping();
 		if (mapping == null)
