@@ -167,7 +167,6 @@
 						<include>servlet/tck/api/jakarta_servlet/servletrequest/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletrequest1/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletrequest30/*Tests.java</include>
-						<include>servlet/tck/api/jakarta_servlet/servletrequestwrapper/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletrequestwrapper30x/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletresponse/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletresponsewrapper/*Tests.java</include>
@@ -195,6 +194,8 @@
 						<include>servlet/tck/spec/defaultmapping/*Tests.java</include>
 						<include>servlet/tck/spec/dir_struct/*Tests.java</include>
 						<include>servlet/tck/spec/errorpage/*Tests.java</include>
+						<include>servlet/tck/spec/errorpage1/*Tests.java</include>
+						<include>servlet/tck/spec/i18n/**/*Tests.java</include>
 						<include>servlet/tck/spec/protocols/**/*Tests.java</include>
 						<include>servlet/tck/spec/rdspecialchar/*Tests.java</include>
 						<include>servlet/tck/spec/requestmap/*Tests.java</include>
@@ -203,6 +204,9 @@
 						<include>servlet/tck/spec/webapps/**/*Tests.java</include>
 						<include>servlet/tck/spec/welcomefiles/*Tests.java</include>
 					</includes>
+					<excludes>
+						<exclude>servlet/tck/api/jakarta_servlet/servletresponsewrapper/ServletResponseWrapperTests.java</exclude>
+					</excludes>
 				</configuration>
 			</plugin>
 			<plugin>

@@ -84,7 +84,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	private final Map<Integer, String> errorMappings = new HashMap<>();
 
-	private final Map<Locale, Charset> localeEncodingMappings = new HashMap<>();
+	private final Map<String, Charset> localeEncodingMappings = new HashMap<>();
 
 	private final Map<String, String> mimeTypeMappings = new HashMap<>();
 
@@ -593,11 +593,14 @@ public final class Context implements AutoCloseable, ServletContext {
 	public void addLocaleEncodingMapping(final Locale locale, final Charset encoding) {
 		Objects.requireNonNull(locale);
 		Objects.requireNonNull(encoding);
-		localeEncodingMappings.put(locale, encoding);
+		localeEncodingMappings.put(locale.toLanguageTag(), encoding);
 	}
 
 	public Charset getLocaleEncoding(final Locale locale) {
-		return localeEncodingMappings.get(locale);
+		Charset charset = localeEncodingMappings.get(locale.toLanguageTag());
+		if(charset == null)
+			charset = localeEncodingMappings.get(locale.getLanguage());
+		return charset;
 	}
 
 	public void addMimeTypeMapping(final String extension, final String mediaType) {

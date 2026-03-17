@@ -162,7 +162,7 @@ public final class Deployer {
 			throw new IllegalArgumentException("Invalid deployment descriptor: contains more then one <locale-encoding-mappig-list>");
 		if (localeMappingLists.size() == 1) {
 			for (final LocaleEncodingMappingType mapping : webApp.getLocaleEncodingMappingList().getFirst().getLocaleEncodingMapping()) {
-				context.addLocaleEncodingMapping(Locale.forLanguageTag(mapping.getLocale()), Charset.forName(mapping.getEncoding()));
+				context.addLocaleEncodingMapping(Locale.forLanguageTag(mapping.getLocale().replace('_', '-')), Charset.forName(mapping.getEncoding()));
 			}
 		}
 
