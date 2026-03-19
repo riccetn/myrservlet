@@ -148,10 +148,16 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	private void handleException(final Request request, final Response response, final Throwable ex) {
 		try {
-			final String path = getExceptionMapping(ex);
+			int status = switch(ex) {
+				case UnavailableException uex when !uex.isPermanent() -> HttpServletResponse.SC_SERVICE_UNAVAILABLE;
+				case UnavailableException _ -> HttpServletResponse.SC_NOT_FOUND;
+				case FileNotFoundException _ -> HttpServletResponse.SC_NOT_FOUND;
+				default -> HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+			};
 
+			final String path = getExceptionMapping(ex);
 			if (path != null) {
-				getRequestDispatcher(path).error(request, response, ex, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, null);
+				getRequestDispatcher(path).error(request, response, ex, status, null);
 				return;
 			}
 
@@ -163,12 +169,7 @@ public final class Context implements AutoCloseable, ServletContext {
 				}
 			}
 
-			switch (ex) {
-				case UnavailableException uex when !uex.isPermanent() -> handleError(request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, null, ex);
-				case UnavailableException _ -> handleError(request, response, HttpServletResponse.SC_NOT_FOUND, null, ex);
-				case FileNotFoundException _ -> handleError(request, response, HttpServletResponse.SC_NOT_FOUND, null, ex);
-				default -> handleError(request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, null, ex);
-			}
+			handleError(request, response, status, null, ex);
 		} catch (final ServletException | IOException ex2) {
 			logger.log(Level.SEVERE, "Error in error-page dispatch", ex2);
 		}

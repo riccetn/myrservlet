@@ -13,6 +13,7 @@ import java.util.EventListener;
 import java.util.List;
 import java.util.Locale;
 
+import ee.jakarta.xml.ns.jakartaee.DisplayNameType;
 import ee.jakarta.xml.ns.jakartaee.ErrorPageType;
 import ee.jakarta.xml.ns.jakartaee.FilterMappingType;
 import ee.jakarta.xml.ns.jakartaee.FilterType;
@@ -71,7 +72,12 @@ public final class Deployer {
 	public final void parseDeplymentDescriptor(final Context context, final Path descriptor) {
 		final WebAppType webApp = JAXB.unmarshal(descriptor.toFile(), WebAppType.class);
 
-		context.setServletContextName(webApp.getDisplayName().getFirst().getValue());
+		final List<DisplayNameType> displayNames = webApp.getDisplayName();
+		if(displayNames.size() > 1)
+			throw new IllegalArgumentException("Invalid deployment descriptor: contains more then one <display-name>");
+		if(displayNames.size() == 1) {
+			context.setServletContextName(webApp.getDisplayName().getFirst().getValue());
+		}
 
 		for (final ParamValueType param : webApp.getContextParam()) {
 			context.setInitParameter(param.getParamName().getValue(), param.getParamValue().getValue());
