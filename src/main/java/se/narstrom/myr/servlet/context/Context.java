@@ -335,20 +335,37 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public <T extends EventListener> void addListener(final T listener) {
-		if (listener instanceof ServletContextListener l)
+		boolean added = false;
+		if (listener instanceof ServletContextListener l) {
 			servletContextListeners.add(l);
-		if (listener instanceof ServletContextAttributeListener l)
+			added = true;
+		}
+		if (listener instanceof ServletContextAttributeListener l) {
 			attributes.addAttributeListener(new ContextAttributeListener(this, l));
-		if (listener instanceof ServletRequestListener l)
+			added = true;
+		}
+		if (listener instanceof ServletRequestListener l) {
 			servletRequestListeners.add(l);
-		if (listener instanceof ServletRequestAttributeListener l)
+			added = true;
+		}
+		if (listener instanceof ServletRequestAttributeListener l) {
 			servletRequestAttributeListeners.add(l);
-		if (listener instanceof HttpSessionListener l)
+			added = true;
+		}
+		if (listener instanceof HttpSessionListener l) {
 			sessionManager.addSessionListener(l);
-		if (listener instanceof HttpSessionAttributeListener l)
+			added = true;
+		}
+		if (listener instanceof HttpSessionAttributeListener l) {
 			sessionManager.addAttributeListener(l);
-		if (listener instanceof HttpSessionIdListener l)
+			added = true;
+		}
+		if (listener instanceof HttpSessionIdListener l) {
 			sessionIdListeners.add(l);
+			added = true;
+		}
+		if (!added)
+			throw new IllegalArgumentException();
 	}
 
 	@Override
