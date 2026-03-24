@@ -72,6 +72,9 @@ public final class Deployer {
 	public final void parseDeplymentDescriptor(final Context context, final Path descriptor) {
 		final WebAppType webApp = JAXB.unmarshal(descriptor.toFile(), WebAppType.class);
 
+		final ServletVersion effectiveVersion = ServletVersion.parse(webApp.getVersion());
+		context.setEffectiveVersion(effectiveVersion.major(), effectiveVersion.minor());
+
 		final List<DisplayNameType> displayNames = webApp.getDisplayName();
 		if(displayNames.size() > 1)
 			throw new IllegalArgumentException("Invalid deployment descriptor: contains more then one <display-name>");

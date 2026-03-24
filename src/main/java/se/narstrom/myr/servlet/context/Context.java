@@ -148,7 +148,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	private void handleException(final Request request, final Response response, final Throwable ex) {
 		try {
-			int status = switch(ex) {
+			int status = switch (ex) {
 				case UnavailableException uex when !uex.isPermanent() -> HttpServletResponse.SC_SERVICE_UNAVAILABLE;
 				case UnavailableException _ -> HttpServletResponse.SC_NOT_FOUND;
 				case FileNotFoundException _ -> HttpServletResponse.SC_NOT_FOUND;
@@ -599,7 +599,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	public Charset getLocaleEncoding(final Locale locale) {
 		Charset charset = localeEncodingMappings.get(locale.toLanguageTag());
-		if(charset == null)
+		if (charset == null)
 			charset = localeEncodingMappings.get(locale.getLanguage());
 		return charset;
 	}
@@ -636,14 +636,24 @@ public final class Context implements AutoCloseable, ServletContext {
 		return 1;
 	}
 
+
+	private int effectiveMajorVersion = 6;
+
+	private int effectiveMinorVersion = 1;
+
 	@Override
 	public int getEffectiveMajorVersion() {
-		return 6;
+		return effectiveMajorVersion;
 	}
 
 	@Override
 	public int getEffectiveMinorVersion() {
-		return 1;
+		return effectiveMinorVersion;
+	}
+
+	public void setEffectiveVersion(final int major, final int minor) {
+		this.effectiveMajorVersion = major;
+		this.effectiveMinorVersion = minor;
 	}
 
 	@Override
@@ -732,7 +742,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public Set<SessionTrackingMode> getDefaultSessionTrackingModes() {
-		throw new UnsupportedOperationException();
+		return Set.of(SessionTrackingMode.COOKIE);
 	}
 
 	@Override
