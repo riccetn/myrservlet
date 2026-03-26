@@ -162,6 +162,8 @@
 						<include>servlet/tck/api/jakarta_servlet/servletconfig/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletcontext/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletcontext301/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/servletcontext302/*Tests.java</include>
+						<include>servlet/tck/api/jakarta_servlet/servletcontext303/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletexception/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletinputstream/*Tests.java</include>
 						<include>servlet/tck/api/jakarta_servlet/servletoutputstream/*Tests.java</include>

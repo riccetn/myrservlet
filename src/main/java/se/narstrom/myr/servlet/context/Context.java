@@ -324,6 +324,8 @@ public final class Context implements AutoCloseable, ServletContext {
 	@Override
 	@SuppressWarnings("unchecked")
 	public void addListener(final String className) {
+		if(inited)
+			throw new IllegalStateException();
 		final Class<EventListener> clazz;
 		try {
 			clazz = (Class<EventListener>) classLoader.loadClass(className);
@@ -335,6 +337,8 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public <T extends EventListener> void addListener(final T listener) {
+		if(inited)
+			throw new IllegalStateException();
 		boolean added = false;
 		if (listener instanceof ServletContextListener l) {
 			servletContextListeners.add(l);
@@ -370,6 +374,8 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public void addListener(Class<? extends EventListener> listenerClass) {
+		if(inited)
+			throw new IllegalStateException();
 		try {
 			addListener(createListener(listenerClass));
 		} catch (final ServletException ex) {
