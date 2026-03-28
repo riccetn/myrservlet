@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
-import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
 import java.security.Principal;
 import java.time.LocalDateTime;
@@ -20,7 +19,6 @@ import java.util.Locale;
 import java.util.Locale.LanguageRange;
 import java.util.Map;
 import java.util.Objects;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import jakarta.servlet.AsyncContext;
@@ -51,7 +49,6 @@ import se.narstrom.myr.servlet.session.SessionIdSource;
 import se.narstrom.myr.servlet.session.SessionKey;
 import se.narstrom.myr.servlet.session.SessionManager;
 import se.narstrom.myr.uri.UrlEncoding;
-import se.narstrom.myr.util.Result;
 
 // https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#the-request
 public class Request implements HttpServletRequest {
@@ -348,56 +345,47 @@ public class Request implements HttpServletRequest {
 	// 3.13. Request Data Encoding
 	// ===========================
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#request-data-encoding
-	private Result<Charset, UnsupportedEncodingException> encoding = null;
+	private boolean characterEncodingInitialized = false;
+	private Charset charset = null;
 
 	@Override
 	public String getCharacterEncoding() {
 		maybeInitCharacterEncoding();
-
-		return switch (encoding) {
-			case Result.Ok(Charset set) when set == null -> null;
-			case Result.Ok(Charset set) -> set.name();
-			case Result.Error(UnsupportedEncodingException ex) -> ex.getMessage();
-		};
+		if (charset == null)
+			return null;
+		return charset.name();
 	}
 
 	@Override
 	public void setCharacterEncoding(final String encoding) throws UnsupportedEncodingException {
-		if (streamReturned || readerReturned || parameters != null)
-			return;
 		try {
-			this.encoding = new Result.Ok<>(Charset.forName(encoding));
-		} catch (final IllegalCharsetNameException | UnsupportedCharsetException ex) {
-			throw new UnsupportedEncodingException(ex.toString());
+			setCharacterEncoding(Charset.forName(encoding));
+		} catch (final UnsupportedCharsetException ex) {
+			throw new UnsupportedEncodingException(encoding);
 		}
 	}
 
 	@Override
-	public void setCharacterEncoding(final Charset encoding) {
+	public void setCharacterEncoding(final Charset charset) {
 		if (streamReturned || readerReturned || parameters != null)
 			return;
-		this.encoding = new Result.Ok<>(encoding);
+		this.charset = charset;
 	}
 
 	private void maybeInitCharacterEncoding() {
-		if (encoding != null)
+		if (characterEncodingInitialized)
 			return;
+		characterEncodingInitialized = true;
 
 		final String contentType = getContentType();
-		if (contentType != null) {
-			final String charset = MediaType.parse(contentType).parameters().get("charset");
-			if (charset != null) {
-				try {
-					encoding = new Result.Ok<>(Charset.forName(charset));
-				} catch (final IllegalCharsetNameException | UnsupportedCharsetException ex) {
-					logger.log(Level.WARNING, "Failed to get charset from content-type header field", ex);
-					encoding = new Result.Error<>(new UnsupportedEncodingException(charset));
-				}
-			}
-		}
+		if (contentType == null)
+			return;
 
-		if (encoding == null)
-			encoding = new Result.Ok<>(null);
+		final String characterEncoding = MediaType.parse(contentType).parameters().get("charset");
+		if (characterEncoding == null)
+			return;
+
+		charset = Charset.forName(characterEncoding);
 	}
 
 
@@ -554,13 +542,17 @@ public class Request implements HttpServletRequest {
 			throw new IllegalStateException("Stream or reader but not both");
 		readerReturned = true;
 		if (reader == null) {
-			maybeInitCharacterEncoding();
+			try {
+				maybeInitCharacterEncoding();
 
-			Charset charset = encoding.value();
-			if (charset == null)
-				charset = Charset.defaultCharset();
+				Charset localCharset = charset;
+				if (localCharset == null)
+					localCharset = Charset.defaultCharset();
 
-			reader = new BufferedReader(new InputStreamReader(request.getInputStream(), charset));
+				reader = new BufferedReader(new InputStreamReader(request.getInputStream(), localCharset));
+			} catch (final UnsupportedCharsetException ex) {
+				throw new UnsupportedEncodingException(ex.getCharsetName());
+			}
 		}
 		return reader;
 	}
