@@ -346,20 +346,22 @@ public class Request implements HttpServletRequest {
 	// ===========================
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#request-data-encoding
 	private boolean characterEncodingInitialized = false;
+	private String characterEncoding = null;
 	private Charset charset = null;
 
 	@Override
 	public String getCharacterEncoding() {
 		maybeInitCharacterEncoding();
-		if (charset == null)
-			return null;
-		return charset.name();
+		return characterEncoding;
 	}
 
 	@Override
 	public void setCharacterEncoding(final String encoding) throws UnsupportedEncodingException {
+		if (streamReturned || readerReturned || parameters != null)
+			return;
 		try {
-			setCharacterEncoding(Charset.forName(encoding));
+			charset = Charset.forName(encoding);
+			characterEncoding = encoding;
 		} catch (final UnsupportedCharsetException ex) {
 			throw new UnsupportedEncodingException(encoding);
 		}
@@ -369,6 +371,7 @@ public class Request implements HttpServletRequest {
 	public void setCharacterEncoding(final Charset charset) {
 		if (streamReturned || readerReturned || parameters != null)
 			return;
+		this.characterEncoding = charset.name();
 		this.charset = charset;
 	}
 
@@ -381,11 +384,7 @@ public class Request implements HttpServletRequest {
 		if (contentType == null)
 			return;
 
-		final String characterEncoding = MediaType.parse(contentType).parameters().get("charset");
-		if (characterEncoding == null)
-			return;
-
-		charset = Charset.forName(characterEncoding);
+		characterEncoding = MediaType.parse(contentType).parameters().get("charset");
 	}
 
 
@@ -542,17 +541,21 @@ public class Request implements HttpServletRequest {
 			throw new IllegalStateException("Stream or reader but not both");
 		readerReturned = true;
 		if (reader == null) {
-			try {
-				maybeInitCharacterEncoding();
+			maybeInitCharacterEncoding();
 
-				Charset localCharset = charset;
-				if (localCharset == null)
-					localCharset = Charset.defaultCharset();
-
-				reader = new BufferedReader(new InputStreamReader(request.getInputStream(), localCharset));
-			} catch (final UnsupportedCharsetException ex) {
-				throw new UnsupportedEncodingException(ex.getCharsetName());
+			if (charset == null && characterEncoding != null) {
+				try {
+					charset = Charset.forName(characterEncoding);
+				} catch (final UnsupportedCharsetException ex) {
+					throw new UnsupportedEncodingException(ex.getCharsetName());
+				}
 			}
+
+			Charset localCharset = charset;
+			if (localCharset == null)
+				localCharset = Charset.defaultCharset();
+
+			reader = new BufferedReader(new InputStreamReader(request.getInputStream(), localCharset));
 		}
 		return reader;
 	}
