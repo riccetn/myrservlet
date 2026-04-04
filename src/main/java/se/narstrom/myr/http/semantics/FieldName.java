@@ -11,17 +11,17 @@ public record FieldName(boolean pseudo, Token value) {
 	}
 
 	public FieldName(final String value) {
-		this(value.charAt(0) == ':', new Token((value.charAt(0) == ':') ? value.substring(1) : value));
+		final boolean psedo;
+		final Token token;
+		if(value.charAt(0) == ':') {
+			psedo = true;
+			token = new Token(value.substring(1));
+		} else {
+			psedo = false;
+			token = new Token(value);
+		}
+		this(psedo, token);
 	}
-
-	/* Java 25
-	public FieldName(final String value) {
-		if(value.charAt(0) == ':')
-			this(true, new Token(value.substring(1)));
-		else
-			this(false, new Token(value));
-	}
-	*/
 
 	@Override
 	public final String toString() {
