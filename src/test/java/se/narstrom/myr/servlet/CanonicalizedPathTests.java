@@ -9,8 +9,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import se.narstrom.myr.http.v1.RequestTarget;
-
 final class CanonicalizedPathTests {
 	static Stream<Arguments> successfulPathSource() {
 		// @formatter:off
@@ -55,8 +53,7 @@ final class CanonicalizedPathTests {
 	@ParameterizedTest
 	@MethodSource("successfulPathSource")
 	void successfulPathTests(final String path, final String expectedCanonicalizedPath) {
-		final RequestTarget requestTarget = RequestTarget.parse(path);
-		final CanonicalizedPath canonicalizedPath = CanonicalizedPath.canonicalize(requestTarget.absolutePath());
+		final CanonicalizedPath canonicalizedPath = CanonicalizedPath.canonicalize(path);
 		assertEquals(expectedCanonicalizedPath, canonicalizedPath.toString());
 	}
 
@@ -119,9 +116,6 @@ final class CanonicalizedPathTests {
 	@ParameterizedTest
 	@MethodSource("failurePathSource")
 	void failurePathTests(final String path) {
-		assertThrows(IllegalArgumentException.class, () -> {
-			final RequestTarget requestTarget = RequestTarget.parse(path);
-			CanonicalizedPath.canonicalize(requestTarget.absolutePath());
-		});
+		assertThrows(IllegalArgumentException.class, () -> CanonicalizedPath.canonicalize(path));
 	}
 }

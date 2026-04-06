@@ -2,18 +2,18 @@ package se.narstrom.myr.servlet;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
-import se.narstrom.myr.http.v1.AbsolutePath;
-import se.narstrom.myr.uri.Segment;
 import se.narstrom.myr.uri.UrlEncoding;
 
-public record CanonicalizedPath(List<CanonicalizedSegment> segments) {
-	public CanonicalizedPath(final List<CanonicalizedSegment> segments) {
-		this.segments = List.copyOf(segments);
-		validateSegments(this.segments);
+public record CanonicalizedPath(List<CanonicalizedSegment> segments, String query) {
+	public CanonicalizedPath {
+		segments = List.copyOf(segments);
+		validateSegments(segments);
+		Objects.requireNonNull(query);
 	}
 
-	private void validateSegments(final List<CanonicalizedSegment> segments) {
+	private static void validateSegments(final List<CanonicalizedSegment> segments) {
 		if (segments.isEmpty())
 			throw new IllegalArgumentException();
 		for (final CanonicalizedSegment segment : segments.subList(0, segments.size() - 1)) {
@@ -23,26 +23,42 @@ public record CanonicalizedPath(List<CanonicalizedSegment> segments) {
 	}
 
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#uri-path-canonicalization
-	public static CanonicalizedPath canonicalize(final AbsolutePath uriPath) {
-		// 1. Discard fragment (completed in HTTP layer)
-		// 2. Separation of path and query (completed in HTTP layer)
-		// 3. Split into segments (completed in HTTP layer)
+	public static CanonicalizedPath canonicalize(final String uri) {
+		// 1. Discard fragment
+		final int hash = uri.indexOf('#');
+		if(hash != -1)
+			throw new IllegalArgumentException("URI with fragment");
 
-		final List<Segment> segments = uriPath.segments();
+		// 2. Separation of path and query (completed in HTTP layer)
+		final int question = uri.indexOf('?');
+		final String path;
+		final String query;
+		if (question != -1) {
+			path = uri.substring(0, question);
+			query = uri.substring(question + 1);
+		} else {
+			path = uri	;
+			query = "";
+		}
+
+		// 3. Split into segments (completed in HTTP layer)
+		if (path.isEmpty() || path.charAt(0) != '/')
+			throw new IllegalArgumentException("URI path not beginning with /");
+		final List<String> segments = List.of(path.substring(1).split("/", -1));
+
 		final List<CanonicalizedSegment> canonicalizedSegments = new ArrayList<>();
 		for (int i = 0; i < segments.size(); ++i) {
-			final Segment segment = segments.get(i);
+			final String segment = segments.get(i);
 
 			// 4. remote path parameters
-			final String segmentValue = segment.value();
-			final int semi = segmentValue.indexOf(';');
+			final int semi = segment.indexOf(';');
 			final String segmentName;
 			final String segmentParameters;
 			if (semi != -1) {
-				segmentName = segmentValue.substring(0, semi);
-				segmentParameters = segmentValue.substring(semi+1);
+				segmentName = segment.substring(0, semi);
+				segmentParameters = segment.substring(semi + 1);
 			} else {
-				segmentName = segmentValue;
+				segmentName = segment;
 				segmentParameters = "";
 			}
 
@@ -51,7 +67,7 @@ public record CanonicalizedPath(List<CanonicalizedSegment> segments) {
 			final String decodedSegmentParameters = UrlEncoding.percentDecode(segmentParameters);
 
 			// 6. Remove empty segments
-			if (i != uriPath.segments().size() - 1 && decodedSegmentName.isEmpty()) {
+			if (i != segments.size() - 1 && decodedSegmentName.isEmpty()) {
 				if (semi != -1)
 					throw new IllegalArgumentException("Empty segment with parameter");
 				continue;
@@ -84,7 +100,7 @@ public record CanonicalizedPath(List<CanonicalizedSegment> segments) {
 		if (canonicalizedSegments.isEmpty())
 			canonicalizedSegments.add(new CanonicalizedSegment("", ""));
 
-		return new CanonicalizedPath(canonicalizedSegments);
+		return new CanonicalizedPath(canonicalizedSegments, query);
 	}
 
 	@Override
