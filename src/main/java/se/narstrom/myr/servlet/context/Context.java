@@ -44,6 +44,7 @@ import jakarta.servlet.ServletRequestAttributeEvent;
 import jakarta.servlet.ServletRequestAttributeListener;
 import jakarta.servlet.ServletRequestEvent;
 import jakarta.servlet.ServletRequestListener;
+import jakarta.servlet.ServletResponse;
 import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.SessionTrackingMode;
 import jakarta.servlet.UnavailableException;
@@ -58,10 +59,10 @@ import se.narstrom.myr.http.v1.RequestTarget;
 import se.narstrom.myr.servlet.CanonicalizedPath;
 import se.narstrom.myr.servlet.InitParameters;
 import se.narstrom.myr.servlet.Mapping;
-import se.narstrom.myr.servlet.async.AsyncHandler;
 import se.narstrom.myr.servlet.attributes.Attributes;
 import se.narstrom.myr.servlet.container.Container;
 import se.narstrom.myr.servlet.dispatcher.Dispatcher;
+import se.narstrom.myr.servlet.filter.ExecutableFilterChain;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
 import se.narstrom.myr.servlet.servlet.MyrServletRegistration;
@@ -122,31 +123,80 @@ public final class Context implements AutoCloseable, ServletContext {
 		this.container = container;
 	}
 
-	public void service(final Request request, final Response response) throws IOException {
-		final String uri = request.getRequestURI();
-		assert uri.startsWith(contextPath);
+	public void service(final ServletRequest request, final ServletResponse response, final Mapping mapping, final DispatcherType dispatcherType) throws ServletException, IOException {
+		Thread.currentThread().setContextClassLoader(classLoader);
 
-		final String path = uri.substring(contextPath.length());
+		if (dispatcherType == DispatcherType.REQUEST)
+			fireRequestInitialized(request);
 
-		fireRequestInitialized(request);
+		final ExecutableFilterChain filterChain;
+		filterChain = registry.createFilterChain(dispatcherType, mapping);
 
-		final AsyncHandler async = new AsyncHandler(this, path, request, response);
 		try {
-			async.service();
-		} catch (final ServletException | IOException ex) {
-			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception from dispatch in context ''{0}''");
-			logRecord.setParameters(new Object[] { contextName });
+			filterChain.doFilter(request, response);
+		} catch (final UnavailableException ex) {
+			final LogRecord logRecord = new LogRecord(Level.WARNING, "Servlet ''{0}'' {1} unavailable");
+			logRecord.setParameters(new Object[] { mapping.getServletName(), ex.isPermanent() ? "permanently" : "temporary" });
 			logRecord.setThrown(ex);
 			logger.log(logRecord);
-
-			if (!response.isCommitted())
-				handleException(request, response, ex);
+			throw ex;
+		} catch (final ServletException | IOException ex) {
+			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception thrown when handeling request in servlet ''{0}''");
+			logRecord.setParameters(new Object[] { mapping.getServletName() });
+			logRecord.setThrown(ex);
+			logger.log(logRecord);
+			throw ex;
+		} catch (final Exception ex) {
+			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception thrown when handeling request in servlet ''{0}''");
+			logRecord.setParameters(new Object[] { mapping.getServletName() });
+			logRecord.setThrown(ex);
+			logger.log(logRecord);
+			throw new ServletException(ex);
 		} finally {
-			fireRequestDestroyed(request);
+			Thread.currentThread().setContextClassLoader(null);
+			if (dispatcherType == DispatcherType.REQUEST)
+				fireRequestDestroyed(request);
 		}
 	}
 
-	private void handleException(final Request request, final Response response, final Throwable ex) {
+	public void service(final ServletRequest request, final ServletResponse response, final MyrServletRegistration registration, final DispatcherType dispatcherType)
+			throws ServletException, IOException {
+		Thread.currentThread().setContextClassLoader(classLoader);
+
+		final ExecutableFilterChain filterChain;
+		filterChain = registry.createFilterChain(dispatcherType, registration.getName());
+
+		try {
+			filterChain.doFilter(request, response);
+		} catch (final UnavailableException ex) {
+			final LogRecord logRecord = new LogRecord(Level.WARNING, "Servlet ''{0}'' {1} unavailable");
+			logRecord.setParameters(new Object[] { registration.getName(), ex.isPermanent() ? "permanently" : "temporary" });
+			logRecord.setThrown(ex);
+			logger.log(logRecord);
+
+			if (ex.isPermanent()) {
+				registration.destroy();
+			}
+
+			throw ex;
+		} catch (final ServletException | IOException ex) {
+			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception thrown when handeling request in servlet ''{0}''");
+			logRecord.setParameters(new Object[] { registration.getName() });
+			logRecord.setThrown(ex);
+			logger.log(logRecord);
+			throw ex;
+		} catch (final Exception ex) {
+			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception thrown when handeling request in servlet ''{0}''");
+			logRecord.setParameters(new Object[] { registration.getName() });
+			logRecord.setThrown(ex);
+			logger.log(logRecord);
+			throw new ServletException(ex);
+		} finally {
+			Thread.currentThread().setContextClassLoader(null);
+		}
+	}
+
+	public void handleException(final Request request, final Response response, final Throwable ex) {
 		try {
 			int status = switch (ex) {
 				case UnavailableException uex when !uex.isPermanent() -> HttpServletResponse.SC_SERVICE_UNAVAILABLE;
@@ -324,7 +374,7 @@ public final class Context implements AutoCloseable, ServletContext {
 	@Override
 	@SuppressWarnings("unchecked")
 	public void addListener(final String className) {
-		if(inited)
+		if (inited)
 			throw new IllegalStateException();
 		final Class<EventListener> clazz;
 		try {
@@ -337,7 +387,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public <T extends EventListener> void addListener(final T listener) {
-		if(inited)
+		if (inited)
 			throw new IllegalStateException();
 		boolean added = false;
 		if (listener instanceof ServletContextListener l) {
@@ -374,7 +424,7 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public void addListener(Class<? extends EventListener> listenerClass) {
-		if(inited)
+		if (inited)
 			throw new IllegalStateException();
 		try {
 			addListener(createListener(listenerClass));
@@ -708,14 +758,14 @@ public final class Context implements AutoCloseable, ServletContext {
 
 		logger.log(Level.INFO, "Creating Dispatcher for uri {0} to servlet {1}", new Object[] { uri, mapping.getServletName() });
 
-		return new Dispatcher(this, mapping, registry, target.query());
+		return new Dispatcher(this, mapping, registry.getServletRegistration(mapping.getServletName()), target.query());
 	}
 
 	@Override
 	public Dispatcher getNamedDispatcher(final String name) {
 		if (registry.getServletRegistration(name) == null)
 			return null;
-		return new Dispatcher(this, name, registry);
+		return new Dispatcher(this, registry.getServletRegistration(name));
 	}
 
 	@Override

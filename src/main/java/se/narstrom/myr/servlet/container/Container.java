@@ -13,6 +13,7 @@ import se.narstrom.myr.http.HttpResponse;
 import se.narstrom.myr.http.exceptions.BadRequest;
 import se.narstrom.myr.http.exceptions.HttpStatusCodeException;
 import se.narstrom.myr.http.exceptions.NotFound;
+import se.narstrom.myr.servlet.async.AsyncHandler;
 import se.narstrom.myr.servlet.context.Context;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
@@ -63,7 +64,8 @@ public final class Container implements AutoCloseable {
 
 		logger.log(Level.INFO, "Dispatching: {0} to context {1}", new Object[] { uri, context.getServletContextName() });
 
-		context.service(request, response);
+		final AsyncHandler handler = new AsyncHandler(context, uri.substring(contextUri.length()), request, response);
+		handler.service();
 
 		response.close();
 	}

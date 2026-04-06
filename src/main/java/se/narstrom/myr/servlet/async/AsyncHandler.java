@@ -9,6 +9,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import jakarta.servlet.AsyncContext;
@@ -19,6 +20,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import se.narstrom.myr.servlet.context.Context;
 import se.narstrom.myr.servlet.dispatcher.Dispatcher;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
@@ -33,7 +35,7 @@ public final class AsyncHandler implements AsyncContext {
 
 	private AsyncState state = AsyncState.DISPATCHING;
 
-	private ServletContext context;
+	private Context context;
 	private String path;
 
 	private final Request originalRequest;
@@ -44,7 +46,7 @@ public final class AsyncHandler implements AsyncContext {
 
 	private long timeout = 30_000L;
 
-	public AsyncHandler(final ServletContext context, final String path, final Request request, final Response response) {
+	public AsyncHandler(final Context context, final String path, final Request request, final Response response) {
 		this.context = context;
 		this.path = path;
 		this.originalRequest = request;
@@ -53,52 +55,62 @@ public final class AsyncHandler implements AsyncContext {
 		this.currentResponse = response;
 	}
 
-	public void service() throws ServletException, IOException {
+	public void service() {
 		this.originalRequest.setAsyncHandler(this);
 
-		Dispatcher dispatcher = (Dispatcher) context.getRequestDispatcher(path);
-		state = AsyncState.DISPATCHED;
-		dispatcher.request(originalRequest, originalResponse);
-
-		lock.lock();
 		try {
-			while (true) {
-				switch (state) {
-					case REDISPATCHING -> state = AsyncState.DISPATCHING;
-					case ASYNC_STARTED -> state = AsyncState.ASYNC_WAIT;
-					case DISPATCHED, COMPLETING, COMPLETED -> state = AsyncState.COMPLETED;
-					default -> throw new IllegalStateException("Async state: " + state);
-				}
+			Dispatcher dispatcher = (Dispatcher) context.getRequestDispatcher(path);
+			state = AsyncState.DISPATCHED;
+			dispatcher.request(originalRequest, originalResponse);
 
-				if (state == AsyncState.DISPATCHING) {
-					state = AsyncState.DISPATCHED;
-					dispatcher = (Dispatcher) context.getRequestDispatcher(path);
-					lock.unlock();
-					try {
-						dispatcher.async(currentRequest, currentResponse);
-					} finally {
-						lock.lock();
+			lock.lock();
+			try {
+				while (true) {
+					switch (state) {
+						case REDISPATCHING -> state = AsyncState.DISPATCHING;
+						case ASYNC_STARTED -> state = AsyncState.ASYNC_WAIT;
+						case DISPATCHED, COMPLETING, COMPLETED -> state = AsyncState.COMPLETED;
+						default -> throw new IllegalStateException("Async state: " + state);
 					}
-					continue;
-				}
 
-				if (state == AsyncState.ASYNC_WAIT) {
-					while (state == AsyncState.ASYNC_WAIT) {
-						if (!cond.await(timeout, TimeUnit.MILLISECONDS)) {
-							fireOnTimeout();
-							return;
+					if (state == AsyncState.DISPATCHING) {
+						state = AsyncState.DISPATCHED;
+						dispatcher = (Dispatcher) context.getRequestDispatcher(path);
+						lock.unlock();
+						try {
+							dispatcher.async(currentRequest, currentResponse);
+						} finally {
+							lock.lock();
 						}
+						continue;
 					}
-					continue;
-				}
 
-				assert state == AsyncState.COMPLETED;
-				break;
+					if (state == AsyncState.ASYNC_WAIT) {
+						while (state == AsyncState.ASYNC_WAIT) {
+							if (!cond.await(timeout, TimeUnit.MILLISECONDS)) {
+								fireOnTimeout();
+								return;
+							}
+						}
+						continue;
+					}
+
+					assert state == AsyncState.COMPLETED;
+					break;
+				}
+			} catch (final InterruptedException ex) {
+				return;
+			} finally {
+				lock.unlock();
 			}
-		} catch (final InterruptedException ex) {
-			return;
-		} finally {
-			lock.unlock();
+		} catch (final IOException | ServletException ex) {
+			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception from dispatch in context ''{0}''");
+			logRecord.setParameters(new Object[] { context.getServletContextName() });
+			logRecord.setThrown(ex);
+			logger.log(logRecord);
+
+			if(!originalResponse.isCommitted())
+				context.handleException(originalRequest, originalResponse, ex);
 		}
 	}
 
@@ -179,7 +191,7 @@ public final class AsyncHandler implements AsyncContext {
 				case ASYNC_WAIT -> AsyncState.DISPATCHING;
 				default -> throw new IllegalStateException("Async state " + state);
 			};
-			this.context = context;
+			this.context = (Context) context;
 			this.path = path;
 			cond.signalAll();
 		} finally {

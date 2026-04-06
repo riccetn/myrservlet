@@ -2,7 +2,6 @@ package se.narstrom.myr.servlet.dispatcher;
 
 import java.io.IOException;
 import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import jakarta.servlet.DispatcherType;
@@ -11,15 +10,12 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletRequestWrapper;
 import jakarta.servlet.ServletResponse;
-import jakarta.servlet.UnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import se.narstrom.myr.servlet.Mapping;
 import se.narstrom.myr.servlet.async.AsyncHttpRequest;
 import se.narstrom.myr.servlet.async.AsyncRequest;
 import se.narstrom.myr.servlet.context.Context;
-import se.narstrom.myr.servlet.context.ServletRegistry;
-import se.narstrom.myr.servlet.filter.ExecutableFilterChain;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
 import se.narstrom.myr.servlet.servlet.MyrServletRegistration;
@@ -32,8 +28,6 @@ public final class Dispatcher implements RequestDispatcher {
 
 	private final Mapping mapping;
 
-	private final ServletRegistry registry;
-
 	private final MyrServletRegistration servletRegistration;
 
 	private final Query query;
@@ -42,19 +36,17 @@ public final class Dispatcher implements RequestDispatcher {
 
 	private ServletResponse response = null;;
 
-	public Dispatcher(final Context context, final Mapping mapping, final ServletRegistry registry, final Query query) {
+	public Dispatcher(final Context context, final Mapping mapping, final MyrServletRegistration servlet, final Query query) {
 		this.context = context;
 		this.mapping = mapping;
-		this.servletRegistration = registry.getServletRegistration(mapping.getServletName());
-		this.registry = registry;
+		this.servletRegistration = servlet;
 		this.query = query;
 	}
 
-	public Dispatcher(final Context context, final String servletName, final ServletRegistry registry) {
+	public Dispatcher(final Context context, final MyrServletRegistration servlet) {
 		this.context = context;
 		this.mapping = null;
-		this.servletRegistration = registry.getServletRegistration(servletName);
-		this.registry = registry;
+		this.servletRegistration = servlet;
 		this.query = null;
 	}
 
@@ -147,44 +139,11 @@ public final class Dispatcher implements RequestDispatcher {
 	}
 
 	private void dispatch(final ServletRequest request, final ServletResponse response, final DispatcherType dispatcherType) throws ServletException, IOException {
-		Thread.currentThread().setContextClassLoader(context.getClassLoader());
-
 		this.request = request;
 		this.response = response;
-
-		final ExecutableFilterChain filterChain;
 		if (mapping != null)
-			filterChain = registry.createFilterChain(dispatcherType, mapping);
+			context.service(request, response, mapping, dispatcherType);
 		else
-			filterChain = registry.createFilterChain(dispatcherType, servletRegistration.getName());
-
-		try {
-			filterChain.doFilter(request, response);
-		} catch (final UnavailableException ex) {
-			final LogRecord logRecord = new LogRecord(Level.WARNING, "Servlet ''{0}'' {1} unavailable");
-			logRecord.setParameters(new Object[] { getRegistration().getName(), ex.isPermanent() ? "permanently" : "temporary" });
-			logRecord.setThrown(ex);
-			logger.log(logRecord);
-
-			if (ex.isPermanent()) {
-				getRegistration().destroy();
-			}
-
-			throw ex;
-		} catch (final ServletException | IOException ex) {
-			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception thrown when handeling request in servlet ''{0}''");
-			logRecord.setParameters(new Object[] { getRegistration().getName() });
-			logRecord.setThrown(ex);
-			logger.log(logRecord);
-			throw ex;
-		} catch (final Exception ex) {
-			final LogRecord logRecord = new LogRecord(Level.WARNING, "Exception thrown when handeling request in servlet ''{0}''");
-			logRecord.setParameters(new Object[] { getRegistration().getName() });
-			logRecord.setThrown(ex);
-			logger.log(logRecord);
-			throw new ServletException(ex);
-		} finally {
-			Thread.currentThread().setContextClassLoader(null);
-		}
+			context.service(request, response, servletRegistration, dispatcherType);
 	}
 }
