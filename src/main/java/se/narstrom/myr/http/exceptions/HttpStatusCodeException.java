@@ -2,7 +2,7 @@ package se.narstrom.myr.http.exceptions;
 
 import java.io.Serial;
 
-public abstract class HttpStatusCodeException extends Exception {
+public abstract class HttpStatusCodeException extends RuntimeException {
 	@Serial
 	private static final long serialVersionUID = 1L;
 

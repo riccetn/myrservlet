@@ -9,7 +9,7 @@ public final class Mapping implements HttpServletMapping {
 	private MappingMatch mappingMatch;
 	private String pattern;
 	private String matchValue;
-	private CanonicalizedPath canoicalizedPath;
+	private CanonicalizedUriPath canoicalizedPath;
 	private String servletPath;
 	private String pathInfo;
 	private String servletName;
@@ -18,7 +18,7 @@ public final class Mapping implements HttpServletMapping {
 			final MappingMatch mappingMatch,
 			final String pattern,
 			final String matchValue,
-			final CanonicalizedPath canonicalizedPath,
+			final CanonicalizedUriPath canonicalizedPath,
 			final String servletPath,
 			final String pathInfo,
 			final String servletName) {
@@ -36,7 +36,7 @@ public final class Mapping implements HttpServletMapping {
 		return mappingMatch;
 	}
 
-	public CanonicalizedPath getCanonicalizedPath() {
+	public CanonicalizedUriPath getCanonicalizedPath() {
 		return canoicalizedPath;
 	}
 

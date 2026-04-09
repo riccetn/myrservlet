@@ -15,7 +15,7 @@ import jakarta.servlet.Filter;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.http.MappingMatch;
-import se.narstrom.myr.servlet.CanonicalizedPath;
+import se.narstrom.myr.servlet.CanonicalizedUriPath;
 import se.narstrom.myr.servlet.Mapping;
 import se.narstrom.myr.servlet.filter.ExecutableFilterChain;
 import se.narstrom.myr.servlet.filter.MyrFilterRegistration;
@@ -171,7 +171,7 @@ public final class ServletRegistry {
 		return new ExecutableFilterChain(filters, servletRegistrations.get(servletName));
 	}
 
-	public Mapping findServletRegistrationFromUri(final CanonicalizedPath canonicalizedPath) {
+	public Mapping findServletRegistrationFromUri(final CanonicalizedUriPath canonicalizedPath) {
 		final String uri = canonicalizedPath.toString();
 
 		String servletName = null;

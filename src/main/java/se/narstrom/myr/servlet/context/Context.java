@@ -55,7 +55,8 @@ import jakarta.servlet.http.HttpSessionAttributeListener;
 import jakarta.servlet.http.HttpSessionEvent;
 import jakarta.servlet.http.HttpSessionIdListener;
 import jakarta.servlet.http.HttpSessionListener;
-import se.narstrom.myr.servlet.CanonicalizedPath;
+import se.narstrom.myr.http.exceptions.HttpStatusCodeException;
+import se.narstrom.myr.servlet.CanonicalizedUriPath;
 import se.narstrom.myr.servlet.InitParameters;
 import se.narstrom.myr.servlet.Mapping;
 import se.narstrom.myr.servlet.attributes.Attributes;
@@ -67,7 +68,6 @@ import se.narstrom.myr.servlet.response.Response;
 import se.narstrom.myr.servlet.servlet.MyrServletRegistration;
 import se.narstrom.myr.servlet.session.Session;
 import se.narstrom.myr.servlet.session.SessionManager;
-import se.narstrom.myr.uri.Query;
 
 // 4. Servlet Context
 // ==================
@@ -752,12 +752,16 @@ public final class Context implements AutoCloseable, ServletContext {
 
 	@Override
 	public Dispatcher getRequestDispatcher(final String uri) {
-		final CanonicalizedPath canonicalizedPath = CanonicalizedPath.canonicalize(uri);
-		final Mapping mapping = registry.findServletRegistrationFromUri(canonicalizedPath);
+		try {
+			final CanonicalizedUriPath canonicalizedPath = CanonicalizedUriPath.canonicalize(uri);
+			final Mapping mapping = registry.findServletRegistrationFromUri(canonicalizedPath);
 
-		logger.log(Level.INFO, "Creating Dispatcher for uri {0} to servlet {1}", new Object[] { uri, mapping.getServletName() });
+			logger.log(Level.INFO, "Creating Dispatcher for uri {0} to servlet {1}", new Object[] { uri, mapping.getServletName() });
 
-		return new Dispatcher(this, mapping, registry.getServletRegistration(mapping.getServletName()), new Query(canonicalizedPath.query()));
+			return new Dispatcher(this, mapping, registry.getServletRegistration(mapping.getServletName()), canonicalizedPath.query());
+		} catch (final HttpStatusCodeException ex) {
+			throw new IllegalArgumentException(ex);
+		}
 	}
 
 	@Override
