@@ -19,11 +19,13 @@ public final class Parameters {
 
 	@SuppressWarnings("unchecked")
 	public Parameters(final Map<String, List<String>> parameters) {
-		final List<Map.Entry<String, String[]>> entries = new ArrayList<>();
+		Objects.requireNonNull(parameters);
+		final Map.Entry<String, String[]>[] entries = new Map.Entry[parameters.size()];
+		int i = 0;
 		for (Map.Entry<String, List<String>> entry : parameters.entrySet()) {
-			entries.add(Map.entry(entry.getKey(), entry.getValue().toArray(String[]::new)));
+			entries[i++] = Map.entry(entry.getKey(), entry.getValue().toArray(String[]::new));
 		}
-		this.map = Map.ofEntries(entries.toArray(Map.Entry[]::new));
+		this.map = Map.ofEntries(entries);
 	}
 
 	public String getParameter(final String name) {
@@ -42,26 +44,27 @@ public final class Parameters {
 		Objects.requireNonNull(name);
 		final String[] values = map.get(name);
 		if (values == null)
-			return null; // NOSONAR: We are required by specification to return null
+			return null;
 		return values.clone();
 	}
 
 	public Map<String, String[]> getParameterMap() {
-		final HashMap<String, String[]> ret = HashMap.newHashMap(map.size());
+		@SuppressWarnings("unchecked")
+		final Map.Entry<String, String[]>[] entries = new Map.Entry[map.size()];
+		int i = 0;
 		for (final Map.Entry<String, String[]> entry : map.entrySet()) {
-			ret.put(entry.getKey(), entry.getValue().clone());
+			entries[i++] = Map.entry(entry.getKey(), entry.getValue().clone());
 		}
-		return ret;
+		return Map.ofEntries(entries);
 	}
 
 	public static Parameters parseQueryOnly(final String query) {
-		final HashMap<String, List<String>> parameters = new HashMap<>();
+		final Map<String, List<String>> parameters;
 
 		if (query != null) {
-			final Map<String, List<String>> queryParameters = UrlEncoding.parse(query);
-			for (final Map.Entry<String, List<String>> ent : queryParameters.entrySet()) {
-				parameters.computeIfAbsent(ent.getKey(), _ -> new ArrayList<>()).addAll(ent.getValue());
-			}
+			parameters = UrlEncoding.parseToMap(query);
+		} else {
+			parameters = Map.of();
 		}
 
 		return new Parameters(parameters);
@@ -71,7 +74,7 @@ public final class Parameters {
 		final HashMap<String, List<String>> parameters = new HashMap<>();
 
 		if (query != null) {
-			final Map<String, List<String>> queryParameters = UrlEncoding.parse(query);
+			final Map<String, List<String>> queryParameters = UrlEncoding.parseToMap(query);
 			for (final Map.Entry<String, List<String>> ent : queryParameters.entrySet()) {
 				parameters.computeIfAbsent(ent.getKey(), _ -> new ArrayList<>()).addAll(ent.getValue());
 			}
@@ -79,7 +82,7 @@ public final class Parameters {
 
 		try {
 			final String content = readAll(body);
-			final Map<String, List<String>> contentParams = UrlEncoding.parse(content);
+			final Map<String, List<String>> contentParams = UrlEncoding.parseToMap(content);
 			for (final Map.Entry<String, List<String>> ent : contentParams.entrySet()) {
 				parameters.computeIfAbsent(ent.getKey(), _ -> new ArrayList<>()).addAll(ent.getValue());
 			}

@@ -69,8 +69,8 @@ public record CanonicalizedUriPath(List<CanonicalizedSegment> segments, Query qu
 			final String decodedSegmentName;
 			final String decodedSegmentParameters;
 			try {
-				decodedSegmentName = UrlEncoding.percentDecode(segmentName);
-				decodedSegmentParameters = UrlEncoding.percentDecode(segmentParameters);
+				decodedSegmentName = UrlEncoding.percentDecode(segmentName, true);
+				decodedSegmentParameters = UrlEncoding.percentDecode(segmentParameters, true);
 			} catch (final IllegalArgumentException ex) {
 				throw new BadRequest("Invalid percent encoding", ex);
 			}

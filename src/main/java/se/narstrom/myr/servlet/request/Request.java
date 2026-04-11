@@ -19,7 +19,6 @@ import java.util.Locale;
 import java.util.Locale.LanguageRange;
 import java.util.Map;
 import java.util.Objects;
-import java.util.logging.Logger;
 
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.DispatcherType;
@@ -53,8 +52,6 @@ import se.narstrom.myr.uri.UrlEncoding;
 // https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#the-request
 public class Request implements HttpServletRequest {
 	private HttpRequest request;
-
-	private final Logger logger = Logger.getLogger(getClass().getName());
 
 	private Dispatcher dispatcher;
 
@@ -482,7 +479,7 @@ public class Request implements HttpServletRequest {
 		if (this.sessionId == null) {
 			/* Path parameter */
 			final String parameterString = dispatcher.getMapping().getCanonicalizedPath().segments().getLast().parameters();
-			final Map<String, List<String>> parameters = UrlEncoding.parse(parameterString);
+			final Map<String, List<String>> parameters = UrlEncoding.parseToMap(parameterString);
 			final List<String> jsessionid = parameters.get("jsessionid");
 			if (jsessionid != null && !jsessionid.isEmpty()) {
 				this.sessionId = jsessionid.getFirst();
