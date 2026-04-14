@@ -19,7 +19,7 @@ import se.narstrom.myr.servlet.context.Context;
 import se.narstrom.myr.servlet.request.Request;
 import se.narstrom.myr.servlet.response.Response;
 import se.narstrom.myr.servlet.servlet.MyrServletRegistration;
-import se.narstrom.myr.uri.Query;
+import se.narstrom.myr.web.url.Query;
 
 public final class Dispatcher implements RequestDispatcher {
 	private static final Logger logger = Logger.getLogger(Dispatcher.class.getName());

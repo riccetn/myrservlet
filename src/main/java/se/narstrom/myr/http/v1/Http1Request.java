@@ -11,7 +11,7 @@ import jakarta.servlet.ServletConnection;
 import se.narstrom.myr.http.HttpRequest;
 import se.narstrom.myr.http.semantics.Fields;
 import se.narstrom.myr.http.semantics.Method;
-import se.narstrom.myr.uri.Query;
+import se.narstrom.myr.web.url.Query;
 
 public final class Http1Request implements HttpRequest {
 	private final Method method;

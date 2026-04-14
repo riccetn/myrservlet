@@ -1,6 +1,6 @@
 package se.narstrom.myr.http.v1;
 
-import se.narstrom.myr.uri.Query;
+import se.narstrom.myr.web.url.Query;
 
 public record RequestTarget(AbsolutePath absolutePath, Query query) {
 	public static RequestTarget parse(final String str) {

@@ -1,8 +1,8 @@
-package se.narstrom.myr.uri;
+package se.narstrom.myr.web.url;
 
 import static se.narstrom.myr.AugmentedBackusNaurFormUtils.*;
 
-public final class UriUtils {
+public final class UrlUtils {
 	public static boolean isPathChar(char ch) {
 		return isUnreserved(ch) || isSubDelim(ch) || ch == ':' || ch == '@';
 	}

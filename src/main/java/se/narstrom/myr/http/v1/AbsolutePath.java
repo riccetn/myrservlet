@@ -3,7 +3,7 @@ package se.narstrom.myr.http.v1;
 import java.util.List;
 import java.util.stream.Stream;
 
-import se.narstrom.myr.uri.Segment;
+import se.narstrom.myr.web.url.Segment;
 
 
 public record AbsolutePath(List<Segment> segments) {

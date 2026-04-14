@@ -1,4 +1,4 @@
-package se.narstrom.myr.uri;
+package se.narstrom.myr.web.url;
 
 import static se.narstrom.myr.AugmentedBackusNaurFormUtils.isHexDigit;
 
@@ -19,7 +19,7 @@ public record Segment(String value) {
 					return false;
 				i += 3;
 			} else {
-				if (!UriUtils.isPathChar(chs[i]))
+				if (!UrlUtils.isPathChar(chs[i]))
 					return false;
 				i += 1;
 			}

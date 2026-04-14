@@ -47,7 +47,7 @@ import se.narstrom.myr.servlet.session.Session;
 import se.narstrom.myr.servlet.session.SessionIdSource;
 import se.narstrom.myr.servlet.session.SessionKey;
 import se.narstrom.myr.servlet.session.SessionManager;
-import se.narstrom.myr.uri.UrlEncoding;
+import se.narstrom.myr.web.url.UrlEncoding;
 
 // https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#the-request
 public class Request implements HttpServletRequest {

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import se.narstrom.myr.uri.UrlEncoding;
+import se.narstrom.myr.web.url.UrlEncoding;
 
 // https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#http-protocol-parameters
 public final class Parameters {

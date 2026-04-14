@@ -1,11 +1,5 @@
-package se.narstrom.myr.uri;
+package se.narstrom.myr.web.url;
 
-import java.io.ByteArrayOutputStream;
-import java.nio.ByteBuffer;
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -72,8 +66,8 @@ public final class UrlEncoding {
 
 			// 5. Let nameString and valueString be the result of running UTF-8 decode
 			// without BOM on the percent-decoding of name and value, respectively.
-			final String nameString = percentDecode(name);
-			final String valueString = percentDecode(value);
+			final String nameString = PercentEncoded.percentDecodeToString(name);
+			final String valueString = PercentEncoded.percentDecodeToString(value);
 
 			// 6. Append (nameString, valueString) to output.
 			output.add(Map.entry(nameString, valueString));
@@ -81,65 +75,5 @@ public final class UrlEncoding {
 
 		// 4. Return output.
 		return List.copyOf(output);
-	}
-
-	// https://url.spec.whatwg.org/#percent-decode
-	public static String percentDecode(final String input) {
-		return percentDecode(input, false);
-	}
-
-	public static String percentDecode(final String input, final boolean failOnInvalid) {
-		// 1. Let output be an empty byte sequence.
-		final int length = input.length();
-		final ByteArrayOutputStream output = new ByteArrayOutputStream(length);
-
-		// 2. For each byte byte in input:
-		int index = 0;
-		while (index < length) {
-			final char ch = input.charAt(index);
-
-			// 1. If byte is not 0x25 (%),
-			if (ch != '%') {
-				// then append byte to output.
-				output.write(ch);
-			}
-			// 2. Otherwise, if byte is 0x25 (%) and the next two bytes after byte in input
-			// are not in the ranges 0x30 (0) to 0x39 (9), 0x41 (A) to 0x46 (F), and 0x61
-			// (a) to 0x66 (f), all inclusive
-			else if ((length <= index + 2) || !isHexDigit(input.charAt(index + 1)) || !isHexDigit(input.charAt(index + 2))) {
-				// append byte to output.
-				if (failOnInvalid)
-					throw new IllegalArgumentException("Invalid percent code");
-				output.write(ch);
-			}
-			// 3. Otherwise:
-			else {
-				// 1. Let bytePoint be the two bytes after byte in input, decoded, and then
-				// interpreted as hexadecimal number.
-				final byte bytePoint = (byte) Integer.parseUnsignedInt(input, index + 1, index + 3, 16);
-
-				// 2. Append a byte whose value is bytePoint to output.
-				output.write(bytePoint);
-
-				// 3. Skip the next two bytes in input.
-				index += 2;
-			}
-
-			++index;
-		}
-
-		// 3. Return output.
-		final CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
-		decoder.onMalformedInput(CodingErrorAction.REPORT);
-
-		try {
-			return decoder.decode(ByteBuffer.wrap(output.toByteArray())).toString();
-		} catch (final CharacterCodingException ex) {
-			throw new IllegalArgumentException(ex);
-		}
-	}
-
-	private static boolean isHexDigit(final char ch) {
-		return (ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'F') || (ch >= 'a' && ch <= 'f');
 	}
 }

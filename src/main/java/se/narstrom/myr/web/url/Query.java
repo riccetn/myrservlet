@@ -1,4 +1,4 @@
-package se.narstrom.myr.uri;
+package se.narstrom.myr.web.url;
 
 public record Query(String value) {
 	public Query {
@@ -9,7 +9,7 @@ public record Query(String value) {
 	public static boolean isQuery(final String query) {
 		for (int i = 0; i < query.length(); ++i) {
 			char ch = query.charAt(i);
-			if (!UriUtils.isPathChar(ch) && ch != '/' && ch != '?') {
+			if (!UrlUtils.isPathChar(ch) && ch != '/' && ch != '?') {
 				return false;
 			}
 		}

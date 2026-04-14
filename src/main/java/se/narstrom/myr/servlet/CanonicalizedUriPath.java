@@ -1,13 +1,19 @@
 package se.narstrom.myr.servlet;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 import se.narstrom.myr.http.exceptions.BadRequest;
 import se.narstrom.myr.http.exceptions.HttpStatusCodeException;
-import se.narstrom.myr.uri.Query;
-import se.narstrom.myr.uri.UrlEncoding;
+import se.narstrom.myr.web.infra.ByteSequence;
+import se.narstrom.myr.web.url.PercentEncoded;
+import se.narstrom.myr.web.url.Query;
 
 public record CanonicalizedUriPath(List<CanonicalizedSegment> segments, Query query) {
 	public CanonicalizedUriPath {
@@ -23,6 +29,15 @@ public record CanonicalizedUriPath(List<CanonicalizedSegment> segments, Query qu
 			if (segment.name().isEmpty())
 				throw new BadRequest("Empty path segment");
 		}
+	}
+
+	@Override
+	public final String toString() {
+		final StringBuilder sb = new StringBuilder();
+		for (final CanonicalizedSegment segment : segments) {
+			sb.append("/").append(segment.name());
+		}
+		return sb.toString();
 	}
 
 	// https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#uri-path-canonicalization
@@ -69,8 +84,8 @@ public record CanonicalizedUriPath(List<CanonicalizedSegment> segments, Query qu
 			final String decodedSegmentName;
 			final String decodedSegmentParameters;
 			try {
-				decodedSegmentName = UrlEncoding.percentDecode(segmentName, true);
-				decodedSegmentParameters = UrlEncoding.percentDecode(segmentParameters, true);
+				decodedSegmentName = percentDecode(segmentName);
+				decodedSegmentParameters = percentDecode(segmentParameters);
 			} catch (final IllegalArgumentException ex) {
 				throw new BadRequest("Invalid percent encoding", ex);
 			}
@@ -112,12 +127,14 @@ public record CanonicalizedUriPath(List<CanonicalizedSegment> segments, Query qu
 		return new CanonicalizedUriPath(canonicalizedSegments, query);
 	}
 
-	@Override
-	public final String toString() {
-		final StringBuilder sb = new StringBuilder();
-		for (final CanonicalizedSegment segment : segments) {
-			sb.append("/").append(segment.name());
+	private static String percentDecode(final String input) throws HttpStatusCodeException {
+		final ByteSequence output = PercentEncoded.percentDecodeOrThrow(input, BadRequest.class);
+		final CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
+		decoder.onMalformedInput(CodingErrorAction.REPORT);
+		try {
+			return decoder.decode(ByteBuffer.wrap(output.toByteArray())).toString();
+		} catch (final CharacterCodingException ex) {
+			throw new BadRequest("Not valid UTF-8", ex);
 		}
-		return sb.toString();
 	}
 }
