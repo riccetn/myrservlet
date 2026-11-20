@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      # The Jakarta Servlet TCK is not published to Maven Central. Its version
+      # must be bumped together with SERVLET_TCK_VERSION and SERVLET_TCK_SHA256
+      # in .github/workflows/build.yml, so update it by hand.
+      - dependency-name: "jakarta.tck:*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
