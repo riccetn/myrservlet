@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  SERVLET_TCK_VERSION: 6.1.1
+  SERVLET_TCK_SHA256: ed876365cda298efa7f9005dff4e2e47a25db6db4734b17d74d404041a5da6da
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -15,5 +19,19 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      # The Jakarta Servlet TCK is not published to Maven Central; it is only
+      # distributed as a zip from download.eclipse.org.
+      - name: Install Jakarta Servlet TCK
+        run: |
+          zip="jakarta-servlet-tck-${SERVLET_TCK_VERSION}.zip"
+          curl -fsSL -o "$RUNNER_TEMP/$zip" "https://download.eclipse.org/jakartaee/servlet/6.1/$zip"
+          echo "${SERVLET_TCK_SHA256}  $RUNNER_TEMP/$zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/$zip" -d "$RUNNER_TEMP"
+          artifacts="$RUNNER_TEMP/servlet-tck/artifacts"
+          install="org.apache.maven.plugins:maven-install-plugin:3.1.4:install-file"
+          mvn -B -q "$install" -Dfile="$artifacts/servlet-tck-${SERVLET_TCK_VERSION}.pom" \
+            -DgroupId=jakarta.tck -DartifactId=servlet-tck -Dversion="${SERVLET_TCK_VERSION}" -Dpackaging=pom
+          mvn -B -q "$install" -Dfile="$artifacts/servlet-tck-util-${SERVLET_TCK_VERSION}.jar"
+          mvn -B -q "$install" -Dfile="$artifacts/servlet-tck-runtime-${SERVLET_TCK_VERSION}.jar"
       - name: Build with Maven
         run: mvn -B verify
