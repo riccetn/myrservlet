@@ -52,7 +52,7 @@
 		<dependency>
 			<groupId>org.apache.tomcat</groupId>
 			<artifactId>tomcat-jasper</artifactId>
-			<version>11.0.18</version>
+			<version>11.0.29</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.tomcat</groupId>
