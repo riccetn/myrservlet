@@ -1,13 +1,20 @@
 package se.narstrom.myr.test;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.ServerSocket;
-import java.nio.file.FileVisitResult;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.concurrent.Executors;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.jboss.arquillian.container.spi.client.container.DeployableContainer;
 import org.jboss.arquillian.container.spi.client.container.DeploymentException;
@@ -19,32 +26,36 @@ import org.jboss.arquillian.container.spi.client.protocol.metadata.Servlet;
 import org.jboss.shrinkwrap.api.Archive;
 import org.jboss.shrinkwrap.api.exporter.ZipExporter;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRegistration;
-import se.narstrom.myr.http.v1.Http1WorkerFactory;
-import se.narstrom.myr.net.Server;
-import se.narstrom.myr.servlet.container.Container;
-import se.narstrom.myr.servlet.context.Context;
-import se.narstrom.myr.servlet.deploy.Deployer;
-import se.narstrom.myr.servlet.session.SessionManager;
+import se.narstrom.myr.test.MyrServletTestServer.Protocol;
 
+/**
+ * Arquillian container that runs the servlet container in a separate JVM (see
+ * {@link MyrServletTestServer}) and controls it over a local socket.
+ */
 public class MyrServletDeployableContainer implements DeployableContainer<MyrServletContainerConfiguration> {
 
-	private Path base;
+	private MyrServletContainerConfiguration configuration;
 
-	private Path temproot;
+	private Path archiveDir;
 
-	private Server server;
+	private Process process;
 
-	private Container container;
+	private Thread outputPump;
 
-	private SessionManager sessionManager;
+	private Socket control;
 
-	private Thread thread;
+	private DataInputStream controlIn;
+
+	private DataOutputStream controlOut;
 
 	@Override
 	public Class<MyrServletContainerConfiguration> getConfigurationClass() {
 		return MyrServletContainerConfiguration.class;
+	}
+
+	@Override
+	public void setup(final MyrServletContainerConfiguration configuration) {
+		this.configuration = configuration;
 	}
 
 	@Override
@@ -55,20 +66,92 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 	@Override
 	public void start() throws LifecycleException {
 		System.out.println("start()");
-		try {
-			base = Files.createTempDirectory("webroot");
-			temproot = Files.createTempDirectory("temproot");
+		if (configuration == null)
+			configuration = new MyrServletContainerConfiguration();
 
-			container = new Container();
-			server = new Server(new ServerSocket(8080), Executors.newVirtualThreadPerTaskExecutor(), new Http1WorkerFactory(container));
-			thread = new Thread(server);
+		try (final ServerSocket controlServer = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+			archiveDir = Files.createTempDirectory("archives");
 
-			sessionManager = new SessionManager();
+			process = launch(controlServer.getLocalPort());
 
-			container.init();
-			thread.start();
-		} catch (final ServletException | IOException ex) {
-			throw new LifecycleException("IO Error", ex);
+			outputPump = Thread.ofPlatform().daemon().name("MyrServlet server output").start(() -> pump(process.getInputStream()));
+
+			controlServer.setSoTimeout(configuration.getTimeout());
+			control = acceptControlConnection(controlServer);
+			control.setSoTimeout(configuration.getTimeout());
+			controlIn = new DataInputStream(new BufferedInputStream(control.getInputStream()));
+			controlOut = new DataOutputStream(new BufferedOutputStream(control.getOutputStream()));
+
+			final String ready = controlIn.readUTF();
+			if (!Protocol.READY.equals(ready))
+				throw new IOException("Unexpected message from server: " + ready);
+
+			// Deployments may take a while; only start and stop are bounded by the timeout.
+			control.setSoTimeout(0);
+		} catch (final IOException ex) {
+			destroyProcess();
+			throw new LifecycleException("Could not start server JVM", ex);
+		}
+	}
+
+	private Process launch(final int controlPort) throws IOException {
+		final Path java = Path.of(System.getProperty("java.home"), "bin", "java");
+
+		final List<String> command = new ArrayList<>();
+		command.add(java.toString());
+		for (final String arg : configuration.getJavaVmArguments().trim().split("\\s+")) {
+			if (!arg.isEmpty())
+				command.add(arg);
+		}
+		command.add(MyrServletTestServer.class.getName());
+		command.add(Integer.toString(configuration.getHttpPort()));
+		command.add(Integer.toString(controlPort));
+
+		final ProcessBuilder builder = new ProcessBuilder(command);
+		// Pass the class path through the environment to avoid command line length limits
+		builder.environment().put("CLASSPATH", testClassPath());
+		builder.redirectErrorStream(true);
+		builder.redirectInput(ProcessBuilder.Redirect.PIPE);
+		return builder.start();
+	}
+
+	private static String testClassPath() {
+		// Surefire may put the real class path in a manifest-only jar
+		final String surefireClassPath = System.getProperty("surefire.test.class.path");
+		if (surefireClassPath != null && !surefireClassPath.isBlank())
+			return surefireClassPath;
+		return System.getProperty("java.class.path");
+	}
+
+	private Socket acceptControlConnection(final ServerSocket controlServer) throws IOException {
+		final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(configuration.getTimeout());
+		controlServer.setSoTimeout(500);
+		while (true) {
+			try {
+				return controlServer.accept();
+			} catch (final SocketTimeoutException ex) {
+				if (!process.isAlive())
+					throw new IOException("Server JVM exited with code " + process.exitValue() + " before connecting");
+				if (System.nanoTime() > deadline)
+					throw new IOException("Timed out waiting for server JVM to connect", ex);
+			}
+		}
+	}
+
+	/**
+	 * Copies the server JVM's output to {@link System#out} so that it ends up
+	 * wherever the test runner captures output.
+	 */
+	private static void pump(final InputStream in) {
+		final byte[] buffer = new byte[8192];
+		try (in) {
+			int n;
+			while ((n = in.read(buffer)) != -1) {
+				System.out.write(buffer, 0, n);
+				System.out.flush();
+			}
+		} catch (final IOException _) {
+			// Process ended
 		}
 	}
 
@@ -76,36 +159,66 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 	public void stop() throws LifecycleException {
 		System.out.println("stop()");
 
-		thread.interrupt();
-
 		Exception ex = null;
 		try {
-			server.close();
+			control.setSoTimeout(configuration.getTimeout());
+			controlOut.writeUTF(Protocol.STOP);
+			controlOut.flush();
+			expectOk();
 		} catch (final Exception ex2) {
 			ex = ex2;
 		}
 
 		try {
-			thread.join();
-		} catch (final InterruptedException _) {
-			Thread.currentThread().interrupt();
+			control.close();
+		} catch (final IOException ex2) {
+			ex = addSuppressed(ex, ex2);
 		}
 
 		try {
-			Files.delete(base);
-		} catch (final IOException ex2) {
-			if (ex != null)
-				ex.addSuppressed(ex2);
-			else
-				ex = ex2;
+			if (!process.waitFor(configuration.getTimeout(), TimeUnit.MILLISECONDS)) {
+				ex = addSuppressed(ex, new IOException("Server JVM did not exit in time, killing it"));
+				destroyProcess();
+			}
+			outputPump.join(configuration.getTimeout());
+		} catch (final InterruptedException _) {
+			Thread.currentThread().interrupt();
+			destroyProcess();
 		}
 
-		server = null;
-		thread = null;
-		base = null;
+		try {
+			Files.deleteIfExists(archiveDir);
+		} catch (final IOException ex2) {
+			ex = addSuppressed(ex, ex2);
+		}
+
+		process = null;
+		outputPump = null;
+		control = null;
+		controlIn = null;
+		controlOut = null;
+		archiveDir = null;
 
 		if (ex != null)
 			throw new LifecycleException("Exception stoping container", ex);
+	}
+
+	private static Exception addSuppressed(final Exception ex, final Exception ex2) {
+		if (ex == null)
+			return ex2;
+		ex.addSuppressed(ex2);
+		return ex;
+	}
+
+	private void destroyProcess() {
+		if (process == null)
+			return;
+		process.destroyForcibly();
+		try {
+			process.waitFor();
+		} catch (final InterruptedException _) {
+			Thread.currentThread().interrupt();
+		}
 	}
 
 	@Override
@@ -116,46 +229,32 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 		if (!archiveName.endsWith(".war"))
 			throw new DeploymentException("Not a WAR file " + archiveName);
 
-		final Path archivePath = base.resolve(archiveName);
-
 		final String name = archiveName.substring(0, archiveName.length() - 4);
-		final Path deploymentPath = base.resolve(name);
-		final Path tempPath = temproot.resolve(name);
-
-		archive.as(ZipExporter.class).exportTo(archivePath.toFile());
-
-		try {
-			ZipUtils.extract(deploymentPath, archivePath);
-		} catch (final IOException ex) {
-			throw new DeploymentException("Could not extract archive", ex);
-		}
-
-		try {
-			Files.createDirectories(tempPath);
-		} catch (final IOException ex) {
-			throw new DeploymentException("Could not create temp directory", ex);
-		}
-
 		final String contextPath = "/" + name;
+		final Path archivePath = archiveDir.resolve(archiveName);
 
-		final Context context;
+		archive.as(ZipExporter.class).exportTo(archivePath.toFile(), true);
+
+		final HTTPContext httpMetaData = new HTTPContext("localhost", configuration.getHttpPort());
 		try {
-			final Deployer deployer = new Deployer();
-			context = deployer.deploy(contextPath, deploymentPath, sessionManager, container);
-			context.init();
+			controlOut.writeUTF(Protocol.DEPLOY);
+			controlOut.writeUTF(archivePath.toAbsolutePath().toString());
+			controlOut.flush();
+			expectOk();
+
+			final int count = controlIn.readInt();
+			for (int i = 0; i < count; ++i) {
+				final String servletName = controlIn.readUTF();
+				httpMetaData.add(new Servlet(servletName, contextPath));
+			}
 		} catch (final IOException ex) {
-			throw new DeploymentException(name, ex);
-		}
-
-		context.setAttribute("jakarta.servlet.context.tempdir", tempPath.toFile());
-
-		container.addContext(context);
-
-		final HTTPContext httpMetaData = new HTTPContext("localhost", 8080);
-
-		for (final ServletRegistration registration : context.getServletRegistrations().values()) {
-			System.out.println("Registration: " + registration.getName() + " " + contextPath);
-			httpMetaData.add(new Servlet(registration.getName(), contextPath));
+			throw new DeploymentException("Could not deploy " + name, ex);
+		} finally {
+			try {
+				Files.deleteIfExists(archivePath);
+			} catch (final IOException ex) {
+				ex.printStackTrace();
+			}
 		}
 
 		return new ProtocolMetaData().addContext(httpMetaData);
@@ -169,66 +268,25 @@ public class MyrServletDeployableContainer implements DeployableContainer<MyrSer
 		if (!archiveName.endsWith(".war"))
 			throw new DeploymentException("Not a WAR file " + archiveName);
 
-		final Path archivePath = base.resolve(archiveName);
-
 		final String name = archiveName.substring(0, archiveName.length() - 4);
-		final Path deploymentPath = base.resolve(name);
-		final Path tempPath = temproot.resolve(name);
-
-		final String contextPath = "/" + name;
-
-		final Context context = container.removeContext(contextPath);
-		context.destroy();
 
 		try {
-			Files.delete(archivePath);
+			controlOut.writeUTF(Protocol.UNDEPLOY);
+			controlOut.writeUTF(name);
+			controlOut.flush();
+			expectOk();
 		} catch (final IOException ex) {
-			ex.printStackTrace();
+			throw new DeploymentException("Could not undeploy " + name, ex);
 		}
-
-		deleteTree(deploymentPath);
-		deleteTree(tempPath);
 	}
 
-	private void deleteTree(final Path root) {
-		try {
-			Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
-				@Override
-				public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) throws IOException {
-					try {
-						Files.delete(file);
-					} catch (IOException ex) {
-						ex.printStackTrace();
-					}
-					return FileVisitResult.CONTINUE;
-				}
-
-				@Override
-				public FileVisitResult visitFileFailed(final Path file, final IOException ex) throws IOException {
-					ex.printStackTrace();
-					try {
-						Files.delete(file);
-					} catch (final IOException ex2) {
-						ex2.printStackTrace();
-					}
-					return FileVisitResult.CONTINUE;
-				}
-
-				@Override
-				public FileVisitResult postVisitDirectory(final Path dir, final IOException ex) throws IOException {
-					if (ex != null)
-						ex.printStackTrace();
-					try {
-						Files.delete(dir);
-					} catch (final IOException ex2) {
-						ex2.printStackTrace();
-					}
-					return FileVisitResult.CONTINUE;
-				}
-			});
-		} catch (final IOException ex) {
-			ex.printStackTrace();
-		}
+	private void expectOk() throws IOException {
+		final String status = controlIn.readUTF();
+		if (Protocol.OK.equals(status))
+			return;
+		if (Protocol.ERROR.equals(status))
+			throw new IOException("Server JVM reported: " + controlIn.readUTF());
+		throw new IOException("Unexpected reply from server JVM: " + status);
 	}
 
 }
